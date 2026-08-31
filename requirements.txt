@@ -1,0 +1,7 @@
+streamlit
+pandas
+openpyxl
+plotly
+faster-whisper
+streamlit-mic-recorder
+ollama
