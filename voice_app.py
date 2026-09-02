@@ -2,6 +2,7 @@ import os
 import re
 import html
 import json
+from datetime import datetime
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -515,14 +516,18 @@ def ai_answer(q, d):
         return "Gemini API key is not configured. Please add GEMINI_API_KEY to Streamlit Secrets."
 
     context = make_ai_context(d)
+    current_date_str = datetime.now().strftime("%Y-%m-%d")
+    
     prompt = f"""
 You are the QFL4 Vehicle Audit Intelligence Assistant for Master Motors FUSO.
+CURRENT SYSTEM DATE: {current_date_str}
+
 STRICT DATA RULES:
 1. Use ONLY the audit data supplied below to answer questions about vehicles, dates, chassis, classes (A, B, C, D), zones, DPU, and defect quantities.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
-3. If the supplied data does not contain the answer, state clearly that the information is not available in the current records.
+3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period. Do not substitute older data as "last week".
 4. Respect active dashboard filters.
-5. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu). You MUST reply in the EXACT SAME language and script/style that the user used. For example, if the user asks in Roman Urdu (e.g., "is date ko konsi gari audit hui"), answer in natural Roman Urdu. If they ask in English, answer in English.
+5. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu). You MUST reply in the EXACT SAME language and script/style that the user used.
 6. Keep answers accurate, practical, and clear.
 
 ACTIVE FILTERED AUDIT DATA:
