@@ -306,9 +306,9 @@ def save_users(users_dict):
 
 
 def login():
-    # Further lowered and centered SVG header
+    # Perfectly centered and proportioned SVG header
     components.html("""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 180" width="100%" height="100%">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 160" width="100%" height="100%">
       <defs>
         <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#0f172a" />
@@ -323,30 +323,30 @@ def login():
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
-      <rect width="750" height="180" rx="12" fill="url(#cardBg)" stroke="#334155" stroke-width="1.2"/>
+      <rect width="750" height="160" rx="12" fill="url(#cardBg)" stroke="#334155" stroke-width="1.2"/>
       
-      <!-- Left Hexagon Logo Icon (Shifted further down) -->
-      <g transform="translate(24, 60)">
+      <!-- Left Hexagon Logo Icon (Perfectly centered vertically) -->
+      <g transform="translate(24, 51)">
         <polygon points="30,2 54,16 54,44 30,58 6,44 6,16" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2" filter="url(#glow)"/>
         <circle cx="30" cy="30" r="11" fill="#0f172a" stroke="#ff1a40" stroke-width="1.2" stroke-dasharray="2 1"/>
         <path d="M23 30 L27 34 L38 23" fill="none" stroke="#22c55e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
 
-      <!-- Center Titles (Shifted further down) -->
-      <g transform="translate(100, 66)">
+      <!-- Center Titles (Perfectly centered vertically) -->
+      <g transform="translate(100, 55)">
         <text x="0" y="8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" font-weight="800" fill="#ff1a40" letter-spacing="2">MASTER MOTORS • FUSO</text>
         <text x="0" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="0.5">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
         <text x="0" y="49" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="7.5" font-weight="600" fill="#94a3b8" letter-spacing="0.8">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
       </g>
 
-      <!-- Right FQCM Badge (Shifted further down) -->
-      <g transform="translate(645, 60)">
+      <!-- Right FQCM Badge (Perfectly centered vertically) -->
+      <g transform="translate(645, 48)">
         <rect width="75" height="64" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
         <text x="37.5" y="28" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
         <text x="37.5" y="46" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
       </g>
     </svg>
-    """, height=185)
+    """, height=165)
 
     users = load_users()
 
