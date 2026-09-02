@@ -28,8 +28,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Groq models (Updated to universally supported model)
-AI_MODEL = "llama-3.1-8b-instant"
+# Groq models (Using the most stable legacy model supported everywhere)
+DEFAULT_AI_MODEL = "llama3-8b-8192"
 TRANSCRIBE_MODEL = "whisper-large-v3"
 
 # Login is also read from Streamlit Secrets.
@@ -508,7 +508,7 @@ def make_ai_context(d):
     return sample.to_string(index=False)
 
 
-def ai_answer(q, d):
+def ai_answer(q, d, ai_model_name):
     client = get_groq_client()
     if client is None:
         return "Groq API key is not configured. Please add GROQ_API_KEY to Streamlit Secrets."
@@ -532,7 +532,7 @@ USER QUESTION: {q}
 """
     try:
         response = client.chat.completions.create(
-            model=AI_MODEL,
+            model=ai_model_name,
             messages=[{"role": "user", "content": prompt}]
         )
         answer = response.choices[0].message.content
@@ -625,7 +625,10 @@ with st.sidebar:
 
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
 
-    st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-section">SYSTEM SETTINGS</div>', unsafe_allow_html=True)
+    # Added model selector in sidebar so you can change it if needed without touching code
+    selected_ai_model = st.text_input("Groq AI Model", value=DEFAULT_AI_MODEL)
+
     ai_ready = get_groq_client() is not None
     ai_status = '<span class="status-ok">● GROQ AI READY</span>' if ai_ready else '<span class="status-warn">● GROQ KEY REQUIRED</span>'
 
@@ -890,7 +893,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         elif question:
             st.markdown(f'<div class="answer-card"><div class="answer-label">YOU SAID</div><div class="answer-text">{html.escape(question)}</div></div>', unsafe_allow_html=True)
             with st.spinner("🤖 Analysing audit data..."):
-                answer = ai_answer(question, filtered)
+                answer = ai_answer(question, filtered, selected_ai_model)
             st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
             speak(answer)
 
@@ -898,7 +901,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     text_question = st.text_input("Question", placeholder="Example: 15 August ko konsi gari audit hui aur kitne defects thay?", label_visibility="collapsed")
     if st.button("Ask Assistant →", type="primary", use_container_width=True) and text_question.strip():
         with st.spinner("🤖 Analysing audit data..."):
-            answer = ai_answer(text_question, filtered)
+            answer = ai_answer(text_question, filtered, selected_ai_model)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
