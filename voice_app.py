@@ -253,7 +253,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 
 .login-box{
     max-width:440px;
-    margin:20px auto 10px;
+    margin:10px auto 10px;
     background:#fff;
     padding:28px 32px;
     border-radius:20px;
@@ -306,9 +306,9 @@ def save_users(users_dict):
 
 
 def login():
-    # Render Aesthetic Red Master Motors FUSO QFL4 SVG Logo Component exclusively on Login / Signup page (Height increased to 145 to prevent cutting)
+    # Fixed SVG with proper viewBox and padding so nothing gets cut off
     components.html("""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="100%" height="100%">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 140" width="100%" height="100%">
       <defs>
         <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#0f172a" />
@@ -323,24 +323,24 @@ def login():
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
-      <rect width="500" height="120" rx="18" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
-      <g transform="translate(24, 18)">
+      <rect width="500" height="132" rx="16" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
+      <g transform="translate(24, 22)">
         <polygon points="42,2 78,22 78,62 42,82 6,62 6,22" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2.5" filter="url(#glow)"/>
         <circle cx="42" cy="42" r="16" fill="#0f172a" stroke="#ff1a40" stroke-width="1.5" stroke-dasharray="3 2"/>
         <path d="M32 43 L39 50 L53 33" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
-      <g transform="translate(125, 40)">
+      <g transform="translate(125, 45)">
         <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="800" fill="#ff1a40" letter-spacing="2.5">MASTER MOTORS • FUSO</text>
         <text x="0" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="900" fill="#ffffff" letter-spacing="0.8">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
         <text x="0" y="47" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8" letter-spacing="1.2">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
       </g>
-      <g transform="translate(415, 22)">
-        <rect width="66" height="76" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
-        <text x="33" y="36" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
-        <text x="33" y="58" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
+      <g transform="translate(410, 26)">
+        <rect width="66" height="80" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+        <text x="33" y="38" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
+        <text x="33" y="60" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
       </g>
     </svg>
-    """, height=145)
+    """, height=140)
 
     users = load_users()
 
@@ -1068,7 +1068,7 @@ components.html("""
         
         <div class="footer-col">
             <div class="footer-heading">QUALITY STANDARDS</div>
-            <ul class="footer-links">
+            <ul class="files-links">
                 <li><a href="#">QFL4 Inspection Protocol</a></li>
                 <li><a href="#">MFTBC Product Audit</a></li>
                 <li><a href="#">Defect Class (A, B, C, D)</a></li>
