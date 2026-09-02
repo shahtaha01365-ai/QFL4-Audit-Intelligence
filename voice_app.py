@@ -984,16 +984,18 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 
 
 # ============================================================
-# PROFESSIONAL CORPORATE FOOTER (COMPONENTS HTML FIX)
+# PROFESSIONAL CORPORATE FOOTER (FIXED HEIGHT & ROUNDED CORNERS)
 # ============================================================
 components.html("""
 <style>
 .footer-container {
     background-color: #1a1a1a;
     color: #a3a3a3;
-    padding: 40px 30px 20px 30px;
+    padding: 40px 30px 30px 30px;
     border-radius: 14px;
-    margin-top: 40px;
+    overflow: hidden;
+    margin-top: 20px;
+    margin-bottom: 20px;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     border-top: 4px solid #1d5fa7;
 }
@@ -1003,7 +1005,7 @@ components.html("""
     justify-content: space-between;
     gap: 30px;
     border-bottom: 1px solid #333333;
-    padding-bottom: 30px;
+    padding-bottom: 25px;
 }
 .footer-col {
     flex: 1;
@@ -1110,4 +1112,4 @@ components.html("""
         <div>Powered by Google Gemini AI & Streamlit | QFL4 Intelligent Portal</div>
     </div>
 </div>
-""", height=340)
+""", height=440)
