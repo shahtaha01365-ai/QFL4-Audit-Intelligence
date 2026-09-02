@@ -44,7 +44,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING (Hiding Manage App, Styling Box Borders & Corporate Footer)
+# STYLING (Hiding Manage App, Styling Box Borders)
 # ============================================================
 st.markdown(
     """
@@ -309,81 +309,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
     color:#64748b;
     font-size:13px;
     margin-bottom:10px
-}
-
-/* === PROFESSIONAL CORPORATE FOOTER STYLING === */
-.footer-container {
-    background-color: #1a1a1a;
-    color: #a3a3a3;
-    padding: 50px 40px 30px 40px;
-    border-radius: 14px;
-    margin-top: 60px;
-    font-family: inherit;
-    border-top: 4px solid #1d5fa7;
-}
-.footer-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 30px;
-    border-bottom: 1px solid #333333;
-    padding-bottom: 35px;
-}
-.footer-col {
-    flex: 1;
-    min-width: 200px;
-}
-.footer-col-brand {
-    flex: 1.3;
-    min-width: 260px;
-}
-.footer-brand-title {
-    color: #ffffff;
-    font-size: 18px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    margin-bottom: 12px;
-}
-.footer-heading {
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-    margin-bottom: 16px;
-    text-transform: uppercase;
-}
-.footer-text {
-    font-size: 12px;
-    line-height: 1.6;
-    color: #9ca3af;
-    margin-bottom: 8px;
-}
-.footer-links {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.footer-links li {
-    margin-bottom: 8px;
-}
-.footer-links a {
-    color: #9ca3af;
-    text-decoration: none;
-    font-size: 12px;
-    transition: color 0.2s;
-}
-.footer-links a:hover {
-    color: #ffffff;
-}
-.footer-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 25px;
-    font-size: 11px;
-    color: #6b7280;
-    flex-wrap: wrap;
-    gap: 15px;
 }
 </style>
 """,
@@ -1059,58 +984,130 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 
 
 # ============================================================
-# PROFESSIONAL CORPORATE FOOTER
+# PROFESSIONAL CORPORATE FOOTER (COMPONENTS HTML FIX)
 # ============================================================
-st.markdown(
-    """
-    <div class="footer-container">
-        <div class="footer-grid">
-            <div class="footer-col-brand">
-                <div class="footer-brand-title">MASTER MOTORS • FUSO QFL4</div>
-                <div class="footer-text">Final Quality Control Management & Assembly Plant Intelligence Portal.</div>
-                <div class="footer-text" style="margin-top: 12px;"><b>Plant Location:</b> Port Qasim Authority, Karachi, Pakistan</div>
-                <div class="footer-text"><b>Department:</b> Quality Assurance, Health, Safety & Environment (HSE)</div>
-            </div>
-            
-            <div class="footer-col">
-                <div class="footer-heading">COMMERCIAL VEHICLES</div>
-                <ul class="footer-links">
-                    <li><a href="#">FUSO Canter Light Duty</a></li>
-                    <li><a href="#">FUSO Heavy Trucks</a></li>
-                    <li><a href="#">Master Bus Series</a></li>
-                    <li><a href="#">Specialized Chassis</a></li>
-                    <li><a href="#">Product Audits</a></li>
-                </ul>
-            </div>
-            
-            <div class="footer-col">
-                <div class="footer-heading">QUALITY STANDARDS</div>
-                <ul class="footer-links">
-                    <li><a href="#">QFL4 Inspection Protocol</a></li>
-                    <li><a href="#">MFTBC Product Audit</a></li>
-                    <li><a href="#">Defect Class (A, B, C, D)</a></li>
-                    <li><a href="#">DPU Performance Benchmarks</a></li>
-                    <li><a href="#">Kaizen & Shop-Floor Safety</a></li>
-                </ul>
-            </div>
-            
-            <div class="footer-col">
-                <div class="footer-heading">SYSTEM & SUPPORT</div>
-                <ul class="footer-links">
-                    <li><a href="#">Gemini AI Assistant</a></li>
-                    <li><a href="#">Pareto Defect Analytics</a></li>
-                    <li><a href="#">Audit Records Dashboard</a></li>
-                    <li><a href="#">User Access Controls</a></li>
-                    <li><a href="#">Contact Quality Control</a></li>
-                </ul>
-            </div>
+components.html("""
+<style>
+.footer-container {
+    background-color: #1a1a1a;
+    color: #a3a3a3;
+    padding: 40px 30px 20px 30px;
+    border-radius: 14px;
+    margin-top: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    border-top: 4px solid #1d5fa7;
+}
+.footer-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 30px;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 30px;
+}
+.footer-col {
+    flex: 1;
+    min-width: 180px;
+}
+.footer-col-brand {
+    flex: 1.3;
+    min-width: 240px;
+}
+.footer-brand-title {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+.footer-heading {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+}
+.footer-text {
+    font-size: 11px;
+    line-height: 1.5;
+    color: #9ca3af;
+    margin-bottom: 6px;
+}
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.footer-links li {
+    margin-bottom: 6px;
+}
+.footer-links a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 11px;
+}
+.footer-links a:hover {
+    color: #ffffff;
+}
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    font-size: 10px;
+    color: #6b7280;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+</style>
+
+<div class="footer-container">
+    <div class="footer-grid">
+        <div class="footer-col-brand">
+            <div class="footer-brand-title">MASTER MOTORS • FUSO QFL4</div>
+            <div class="footer-text">Final Quality Control Management & Assembly Plant Intelligence Portal.</div>
+            <div class="footer-text" style="margin-top: 10px;"><b>Plant Location:</b> Port Qasim Authority, Karachi, Pakistan</div>
+            <div class="footer-text"><b>Department:</b> Quality Assurance, Health, Safety & Environment (HSE)</div>
         </div>
         
-        <div class="footer-bottom">
-            <div>© 2026 Master Motor Corporation Ltd. All Rights Reserved.</div>
-            <div>Powered by Google Gemini AI & Streamlit | QFL4 Intelligent Portal</div>
+        <div class="footer-col">
+            <div class="footer-heading">COMMERCIAL VEHICLES</div>
+            <ul class="footer-links">
+                <li><a href="#">FUSO Canter Light Duty</a></li>
+                <li><a href="#">FUSO Heavy Trucks</a></li>
+                <li><a href="#">Master Bus Series</a></li>
+                <li><a href="#">Specialized Chassis</a></li>
+                <li><a href="#">Product Audits</a></li>
+            </ul>
+        </div>
+        
+        <div class="footer-col">
+            <div class="footer-heading">QUALITY STANDARDS</div>
+            <ul class="footer-links">
+                <li><a href="#">QFL4 Inspection Protocol</a></li>
+                <li><a href="#">MFTBC Product Audit</a></li>
+                <li><a href="#">Defect Class (A, B, C, D)</a></li>
+                <li><a href="#">DPU Performance Benchmarks</a></li>
+                <li><a href="#">Kaizen & Shop-Floor Safety</a></li>
+            </ul>
+        </div>
+        
+        <div class="footer-col">
+            <div class="footer-heading">SYSTEM & SUPPORT</div>
+            <ul class="footer-links">
+                <li><a href="#">Gemini AI Assistant</a></li>
+                <li><a href="#">Pareto Defect Analytics</a></li>
+                <li><a href="#">Audit Records Dashboard</a></li>
+                <li><a href="#">User Access Controls</a></li>
+                <li><a href="#">Contact Quality Control</a></li>
+            </ul>
         </div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+    
+    <div class="footer-bottom">
+        <div>© 2026 Master Motor Corporation Ltd. All Rights Reserved.</div>
+        <div>Powered by Google Gemini AI & Streamlit | QFL4 Intelligent Portal</div>
+    </div>
+</div>
+""", height=340)
