@@ -253,7 +253,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 
 .login-box{
     max-width:440px;
-    margin:10px auto 10px;
+    margin:20px auto 10px;
     background:#fff;
     padding:28px 32px;
     border-radius:20px;
@@ -306,7 +306,7 @@ def save_users(users_dict):
 
 
 def login():
-    # Render Aesthetic Red Master Motors FUSO QFL4 SVG Logo Component exclusively on Login / Signup page
+    # Render Aesthetic Red Master Motors FUSO QFL4 SVG Logo Component exclusively on Login / Signup page (Height increased to 145 to prevent cutting)
     components.html("""
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="100%" height="100%">
       <defs>
@@ -340,7 +340,7 @@ def login():
         <text x="33" y="58" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
       </g>
     </svg>
-    """, height=130)
+    """, height=145)
 
     users = load_users()
 
