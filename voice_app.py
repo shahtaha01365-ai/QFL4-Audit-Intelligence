@@ -308,7 +308,7 @@ def save_users(users_dict):
 def login():
     # Properly proportioned & fully visible SVG header
     components.html("""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 115" width="200%" height="200%">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 160" width="150%" height="200%">
       <defs>
         <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#0f172a" />
