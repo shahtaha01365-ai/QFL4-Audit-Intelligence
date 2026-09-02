@@ -44,7 +44,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING (Fully Integrated Mic inside Red Border Box)
+# STYLING (Hiding Streamlit Cloud Floating "Manage app" Button)
 # ============================================================
 st.markdown(
     """
@@ -52,6 +52,11 @@ st.markdown(
 #MainMenu, footer{visibility:hidden}
 .stApp{background:#eef1f5}
 .block-container{max-width:1500px;padding:24px 32px 50px}
+
+/* Hide Streamlit Cloud Floating Manage App / Status Widget */
+[data-testid="stStatusWidget"] {
+    display: none !important;
+}
 
 [data-testid="stSidebar"]{
     background:#fff!important;
@@ -226,7 +231,6 @@ st.markdown(
     margin-top:5px
 }
 
-/* Custom Streamlit styling to merge text input & mic inside a single clean red border container */
 div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) {
     background: #ffffff;
     border: 2px solid #ff4b4b !important;
@@ -292,27 +296,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
     color:#64748b;
     font-size:13px;
     margin-bottom:10px
-}
-
-.status-ok{
-    display:inline-block;
-    padding:5px 10px;
-    border-radius:14px;
-    background:#edf8f1;
-    color:#15803d;
-    border:1px solid #ccebd7;
-    font-size:10px;
-    font-weight:900
-}
-.status-warn{
-    display:inline-block;
-    padding:5px 10px;
-    border-radius:14px;
-    background:#fff7ed;
-    color:#c2410c;
-    border:1px solid #fed7aa;
-    font-size:10px;
-    font-weight:900
 }
 </style>
 """,
@@ -904,7 +887,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (Search Bar & Mic Fully Integrated Inside Red Border)
+# AI ASSISTANT
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
@@ -919,7 +902,6 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    # Text input and Microphone merged side-by-side inside the red border wrapper container via CSS selector
     col_txt, col_mic = st.columns([12, 1])
     with col_txt:
         text_question = st.text_input("Ask anything", placeholder="Ask anything about audit data, defects, or DPU...", label_visibility="collapsed")
