@@ -28,9 +28,9 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model
-AI_MODEL = "gemini-1.5-flash"
-TRANSCRIBE_MODEL = "whisper-large-v3" # Groq whisper agr chal raha hai toh theek, warna text input zbrdast chalega
+# Gemini AI Model (Updated to latest stable release)
+AI_MODEL = "gemini-2.5-flash"
+TRANSCRIBE_MODEL = "whisper-large-v3"
 
 # Login is also read from Streamlit Secrets.
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
