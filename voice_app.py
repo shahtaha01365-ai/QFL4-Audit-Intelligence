@@ -178,6 +178,28 @@ st.markdown(
     margin-top:7px
 }
 
+/* Aesthetic Red DPU Card Styling */
+.kpi-dpu{
+    background:linear-gradient(135deg, #fff5f5, #fed7d7);
+    border:1px solid #feb2b2;
+    border-radius:14px;
+    padding:18px;
+    min-height:105px;
+    box-shadow:0 6px 18px rgba(220, 38, 38, 0.08)
+}
+.kpi-dpu .kpi-label{
+    font-size:11px;
+    color:#9b2c2c;
+    font-weight:800;
+    letter-spacing:0.5px
+}
+.kpi-dpu .kpi-value{
+    font-size:34px;
+    color:#dc2626;
+    font-weight:900;
+    margin-top:7px
+}
+
 .voice-card{
     padding:25px;
     border-radius:16px;
@@ -304,7 +326,6 @@ def login():
     users = load_users()
 
     if not st.session_state.show_signup:
-        # --- LOGIN VIEW ---
         st.markdown(
             """
             <div class="login-box">
@@ -345,7 +366,6 @@ def login():
                 st.rerun()
 
     else:
-        # --- CREATE ACCOUNT VIEW ---
         st.markdown(
             """
             <div class="login-box">
@@ -444,6 +464,14 @@ def total_defects(d):
     return nsum(d, find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity"]))
 
 
+def calculate_dpu(d):
+    v_count = vehicle_count(d)
+    if v_count == 0:
+        return 0.0
+    tot_def = total_defects(d)
+    return round(tot_def / v_count, 2)
+
+
 @st.cache_data(ttl=30)
 def load_excel():
     d = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
@@ -476,6 +504,10 @@ def direct_answer(q, d):
     if any(x in raw for x in ["total defect", "total defects", "kitne defects", "defects kitne"]):
         n = total_defects(d)
         return f"The total number of defects is {n}. Roman Urdu: total {n} defects hain."
+
+    if any(x in raw for x in ["dpu", "defects per unit"]):
+        dpu_val = calculate_dpu(d)
+        return f"The current DPU (Defects Per Unit) is {dpu_val}."
 
     if any(x in raw for x in ["a+b", "a + b", "a plus b"]):
         return f"The total A+B defects are {ab_total(d)}."
@@ -607,7 +639,6 @@ with st.sidebar:
         "📋 Audit Data",
     ]
 
-    # Add Manage Users tab if the logged-in user is admin
     if st.session_state.role == "admin":
         nav_pages.append("👥 Manage Users")
 
@@ -749,17 +780,19 @@ if selected_chassis != "All" and chassis_col:
 
 
 # ============================================================
-# KPI CARDS
+# KPI CARDS (With Aesthetic Red DPU Card)
 # ============================================================
 if page in ["🏠 Overview", "⚠️ Total Defects"]:
     st.markdown('<div class="section-title">📌 Key Performance Indicators</div>', unsafe_allow_html=True)
-    kpis = [
+    
+    # First Row of KPIs (4 Cards)
+    kpis_row1 = [
         ("🚗 VEHICLES AUDITED", vehicle_count(filtered)),
         ("⚠️ TOTAL DEFECTS", total_defects(filtered)),
         ("🔴 CLASS A", class_total(filtered, "A")),
         ("🟠 A+B", ab_total(filtered)),
     ]
-    for col, (label, value) in zip(st.columns(4), kpis):
+    for col, (label, value) in zip(st.columns(4), kpis_row1):
         with col:
             st.markdown(
                 f"""
@@ -770,6 +803,39 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
                 """,
                 unsafe_allow_html=True,
             )
+
+    # Second Row of KPIs (Class C, Class D & Aesthetic Red DPU Card)
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(
+            f"""
+            <div class="kpi">
+                <div class="kpi-label">🟡 CLASS C</div>
+                <div class="kpi-value">{class_total(filtered, "C")}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f"""
+            <div class="kpi">
+                <div class="kpi-label">🟢 CLASS D</div>
+                <div class="kpi-value">{class_total(filtered, "D")}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c3:
+        st.markdown(
+            f"""
+            <div class="kpi-dpu">
+                <div class="kpi-label">📊 DPU (Defects/Unit)</div>
+                <div class="kpi-value">{calculate_dpu(filtered)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================
