@@ -44,7 +44,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING (Modernized Chat Bar & UI)
+# STYLING (Permanent Red Border & Integrated Mic Bar)
 # ============================================================
 st.markdown(
     """
@@ -226,20 +226,20 @@ st.markdown(
     margin-top:5px
 }
 
-/* Clean Unified Input Container */
+/* Permanent Red Border Unified Input Container with Integrated Mic */
 .chat-input-container {
     background: #ffffff;
-    border: 2px solid #cbd5e1;
-    border-radius: 16px;
-    padding: 8px 16px;
-    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
-    margin-top: 15px;
+    border: 2px solid #ff4b4b !important;
+    border-radius: 14px;
+    padding: 6px 14px;
+    box-shadow: 0 4px 20px rgba(255, 75, 75, 0.1);
+    margin-top: 10px;
     display: flex;
     align-items: center;
 }
 .chat-input-container:focus-within {
-    border-color: #2563eb;
-    box-shadow: 0 4px 24px rgba(37, 99, 235, 0.12);
+    border-color: #e03131 !important;
+    box-shadow: 0 4px 24px rgba(224, 49, 49, 0.2);
 }
 .chat-input-container [data-baseweb="input"] {
     background: transparent !important;
@@ -902,7 +902,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (Fixed UI Style)
+# AI ASSISTANT (Permanent Red Border & Integrated Mic Box)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
@@ -917,7 +917,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    # Sleek Unified Input Box UI Container
+    # Single Permanent Red Border Container housing text input and microphone button side-by-side
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
     col_txt, col_mic = st.columns([12, 1])
     with col_txt:
