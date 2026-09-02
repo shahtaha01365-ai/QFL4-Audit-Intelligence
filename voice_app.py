@@ -40,6 +40,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
     st.session_state.role = "user"
+if "show_signup" not in st.session_state:
+    st.session_state.show_signup = False
 
 
 # ============================================================
@@ -213,9 +215,9 @@ st.markdown(
 
 .login-box{
     max-width:440px;
-    margin:70px auto 20px;
+    margin:50px auto 10px;
     background:#fff;
-    padding:38px;
+    padding:32px;
     border-radius:20px;
     border:1px solid #e1e7ed;
     box-shadow:0 18px 50px rgba(15,23,42,.08);
@@ -229,13 +231,14 @@ st.markdown(
 }
 .login-title{
     color:#243447;
-    font-size:32px;
+    font-size:28px;
     font-weight:900;
-    margin-top:7px
+    margin-top:5px
 }
 .login-subtitle{
     color:#64748b;
-    margin-bottom:24px
+    font-size:13px;
+    margin-bottom:10px
 }
 
 .status-ok{
@@ -272,6 +275,7 @@ def load_users():
         default_users = {}
         if LOGIN_EMAIL:
             default_users[LOGIN_EMAIL.strip().lower()] = {
+                "name": "Administrator",
                 "password": LOGIN_PASSWORD,
                 "status": "approved",
                 "role": "admin",
@@ -291,59 +295,93 @@ def save_users(users_dict):
 
 
 def login():
-    st.markdown(
-        """
-        <div class="login-box">
-            <div class="login-logo">MASTER MOTOR • QFL4</div>
-            <div class="login-title">Audit Intelligence</div>
-            <div class="login-subtitle">
-                Sign in or register for an account
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
     users = load_users()
-    tab_login, tab_signup = st.tabs(["🔐 Login", "📝 Request Account"])
 
-    with tab_login:
-        e = st.text_input("📧 Email", key="login_email")
-        p = st.text_input("🔒 Password", type="password", key="login_pass")
+    if not st.session_state.show_signup:
+        # --- LOGIN VIEW ---
+        st.markdown(
+            """
+            <div class="login-box">
+                <div class="login-logo">MASTER MOTOR • QFL4</div>
+                <div class="login-title">Welcome Back</div>
+                <div class="login-subtitle">Sign in to access Audit Intelligence</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        
+        with st.form("login_form"):
+            e = st.text_input("Email", placeholder="name@master.com.pk")
+            p = st.text_input("Password", type="password", placeholder="••••••••")
+            submitted = st.form_submit_button("LOGIN", use_container_width=True)
 
-        if st.button("Login →", type="primary", use_container_width=True):
-            e_clean = e.strip().lower()
-            if e_clean in users:
-                if users[e_clean]["status"] == "approved":
-                    if users[e_clean]["password"] == p:
-                        st.session_state.logged_in = True
-                        st.session_state.user_email = e_clean
-                        st.session_state.role = users[e_clean].get("role", "user")
-                        st.rerun()
+            if submitted:
+                e_clean = e.strip().lower()
+                if e_clean in users:
+                    if users[e_clean]["status"] == "approved":
+                        if users[e_clean]["password"] == p:
+                            st.session_state.logged_in = True
+                            st.session_state.user_email = e_clean
+                            st.session_state.role = users[e_clean].get("role", "user")
+                            st.rerun()
+                        else:
+                            st.error("Incorrect password.")
                     else:
-                        st.error("Incorrect password.")
+                        st.warning("Your account is awaiting admin approval ⏳")
                 else:
-                    st.warning("Your account is pending admin approval.")
-            else:
-                st.error("Email not found. Please register an account.")
+                    st.error("Email not found. Please create an account.")
 
-    with tab_signup:
-        new_e = st.text_input("📧 Email Address", key="signup_email").strip().lower()
-        new_p = st.text_input("🔒 Choose Password", type="password", key="signup_pass")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:8px;'>Don't have an account?</p>", unsafe_allow_html=True)
+            if st.button("Create Account", use_container_width=True):
+                st.session_state.show_signup = True
+                st.rerun()
 
-        if st.button("Submit Account Request", use_container_width=True):
-            if not new_e or not new_p:
-                st.error("Please fill in all fields.")
-            elif new_e in users:
-                st.error("This email is already registered or requested.")
-            else:
-                users[new_e] = {
-                    "password": new_p,
-                    "status": "pending",
-                    "role": "user",
-                }
-                save_users(users)
-                st.success("Request submitted successfully! The admin will review and approve your account.")
+    else:
+        # --- CREATE ACCOUNT VIEW ---
+        st.markdown(
+            """
+            <div class="login-box">
+                <div class="login-logo">MASTER MOTOR • QFL4</div>
+                <div class="login-title">Create QFL4 Account</div>
+                <div class="login-subtitle">Register for audit portal access</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.form("signup_form"):
+            full_name = st.text_input("Full Name", placeholder="Taha Shahid")
+            new_e = st.text_input("Email", placeholder="name@master.com.pk").strip().lower()
+            new_p = st.text_input("Password", type="password", placeholder="••••••••")
+            confirm_p = st.text_input("Confirm Password", type="password", placeholder="••••••••")
+            
+            signup_submitted = st.form_submit_button("CREATE ACCOUNT", use_container_width=True)
+
+            if signup_submitted:
+                if not full_name or not new_e or not new_p or not confirm_p:
+                    st.error("Please fill in all fields.")
+                elif new_p != confirm_p:
+                    st.error("Passwords do not match.")
+                elif new_e in users:
+                    st.error("This email is already registered or requested.")
+                else:
+                    users[new_e] = {
+                        "name": full_name,
+                        "password": new_p,
+                        "status": "pending",
+                        "role": "user",
+                    }
+                    save_users(users)
+                    st.success("Account created! Status: PENDING ⏳. Waiting for admin approval.")
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:8px;'>Already have an account?</p>", unsafe_allow_html=True)
+            if st.button("Login", use_container_width=True):
+                st.session_state.show_signup = False
+                st.rerun()
 
 
 def get_openai_client():
@@ -606,7 +644,8 @@ if page == "👥 Manage Users" and st.session_state.role == "admin":
         for email in pending_list:
             c1, c2, c3 = st.columns([3, 1, 1])
             with c1:
-                st.markdown(f"**{email}**")
+                user_name = users[email].get("name", "N/A")
+                st.markdown(f"**{user_name}** <br><span style='color:#718096; font-size:12px;'>{email}</span>", unsafe_allow_html=True)
             with c2:
                 if st.button("Approve", key=f"app_{email}", type="primary"):
                     users[email]["status"] = "approved"
