@@ -50,7 +50,7 @@ if "show_signup" not in st.session_state:
 st.markdown(
     """
 <style>
-#MainMenu,header,footer{visibility:hidden}
+#MainMenu, footer{visibility:hidden}
 .stApp{background:#eef1f5}
 .block-container{max-width:1500px;padding:24px 32px 50px}
 
