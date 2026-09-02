@@ -58,7 +58,7 @@ st.markdown(
 }
 
 .block-container {
-    padding-top: 1.5rem !important;
+    padding-top: 0.5rem !important;
     padding-bottom: 3.5rem !important;
     max-width: 1500px;
 }
@@ -111,7 +111,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 
 .login-container {
     max-width: 520px;
-    margin: 5px auto;
+    margin: 0px auto;
     background: #ffffff;
     padding: 25px 35px;
     border-radius: 20px;
