@@ -8,8 +8,8 @@ import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Cloud AI
-from openai import OpenAI
+# Free Cloud AI (Groq)
+from groq import Groq
 from streamlit_mic_recorder import mic_recorder
 
 
@@ -28,9 +28,9 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# OpenAI models. API key is read from Streamlit Secrets / environment.
-AI_MODEL = "gpt-5.6-luna"
-TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+# Groq models (Free & Fast)
+AI_MODEL = "llama-3.3-70b-versatile"
+TRANSCRIBE_MODEL = "whisper-large-v3"
 
 # Login is also read from Streamlit Secrets.
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
@@ -418,11 +418,11 @@ def login():
                 st.rerun()
 
 
-def get_openai_client():
-    api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+def get_groq_client():
+    api_key = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
     if not api_key:
         return None
-    return OpenAI(api_key=api_key)
+    return Groq(api_key=api_key)
 
 
 def norm(x):
@@ -509,9 +509,9 @@ def make_ai_context(d):
 
 
 def ai_answer(q, d):
-    client = get_openai_client()
+    client = get_groq_client()
     if client is None:
-        return "OpenAI API key is not configured. Please add OPENAI_API_KEY to Streamlit Secrets."
+        return "Groq API key is not configured. Please add GROQ_API_KEY to Streamlit Secrets."
 
     context = make_ai_context(d)
     prompt = f"""
@@ -531,23 +531,29 @@ Rows: {context}
 USER QUESTION: {q}
 """
     try:
-        response = client.responses.create(model=AI_MODEL, input=prompt)
-        answer = getattr(response, "output_text", "") or ""
+        response = client.chat.completions.create(
+            model=AI_MODEL,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        answer = response.choices[0].message.content
         return answer.strip() or "I could not generate an answer from the current audit data."
     except Exception as exc:
-        return f"Cloud AI request failed: {exc}"
+        return f"Groq AI request failed: {exc}"
 
 
 def speech_to_text(audio_bytes):
-    client = get_openai_client()
+    client = get_groq_client()
     if client is None:
-        return None, "OpenAI API key is not configured."
+        return None, "Groq API key is not configured."
     temp_file = "voice_input.wav"
     try:
         with open(temp_file, "wb") as f:
             f.write(audio_bytes)
         with open(temp_file, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(model=TRANSCRIBE_MODEL, file=audio_file)
+            transcript = client.audio.transcriptions.create(
+                model=TRANSCRIBE_MODEL,
+                file=(temp_file, audio_file.read())
+            )
         return getattr(transcript, "text", "").strip(), None
     except Exception as exc:
         return None, f"Voice transcription failed: {exc}"
@@ -620,8 +626,8 @@ with st.sidebar:
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
 
     st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
-    ai_ready = get_openai_client() is not None
-    ai_status = '<span class="status-ok">● CLOUD AI READY</span>' if ai_ready else '<span class="status-warn">● API KEY REQUIRED</span>'
+    ai_ready = get_groq_client() is not None
+    ai_status = '<span class="status-ok">● GROQ AI READY</span>' if ai_ready else '<span class="status-warn">● GROQ KEY REQUIRED</span>'
 
     st.markdown(
         f"""
