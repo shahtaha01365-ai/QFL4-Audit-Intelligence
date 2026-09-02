@@ -110,7 +110,7 @@ st.markdown(
     background:#fff;
     border:1px solid #e1e7ed;
     border-radius:18px;
-    padding:20px 28px;
+    padding:22px 28px;
     text-align:center;
     box-shadow:0 7px 22px rgba(15,23,42,.05);
     margin-bottom:20px
@@ -122,11 +122,19 @@ st.markdown(
     max-height: 60px;
 }
 .brand-title{
-    font-size:13px;
+    font-size:16px;
     font-weight:900;
     letter-spacing:2.5px;
-    color:#2563eb;
-    margin-top:10px
+    color:#1d5fa7;
+    margin-top:12px
+}
+.brand-tagline{
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:1px;
+    color:#64748b;
+    margin-top:4px;
+    font-style:italic;
 }
 .main-title{
     font-size:36px;
@@ -705,9 +713,6 @@ if page == "🏠 Overview":
     st.markdown(
         """
         <div class="logo-area">
-            <div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#1d5fa7; margin-bottom:12px;">
-                FUSO • MASTER MOTOR • QFL4 AUDIT INTELLIGENCE
-            </div>
         """,
         unsafe_allow_html=True,
     )
@@ -718,7 +723,8 @@ if page == "🏠 Overview":
 
     st.markdown(
         """
-        <div class="brand-title">MASTER MOTOR • QFL4</div>
+        <div class="brand-title">FUSO MASTER MOTOR • QFL4 AUDIT INTELLIGENCE</div>
+        <div class="brand-tagline">A Vision of Mr. Ather Ali Darbari</div>
         <div class="main-title">AI AUDIT INTELLIGENCE</div>
         <div class="main-subtitle">Smart Vehicle Quality & Audit Analytics</div>
         <div class="online-badge">● SYSTEM ONLINE</div>
