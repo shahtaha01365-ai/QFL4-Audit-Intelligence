@@ -29,7 +29,7 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model (Using 1.5 Flash for speed & stability)
+# Gemini AI Model
 AI_MODEL = "gemini-1.5-flash"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
@@ -888,7 +888,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         """
         <div class="voice-card">
             <div class="voice-title">🎙️ AI Voice & Text Assistant (Gemini Powered)</div>
-            <div class="voice-subtitle">Aap microphone button par click kar ke bol sakte hain ya neeche type kar sakte hain (English, Urdu, ya Roman Urdu).</div>
+            <div class="voice-subtitle">Click "Speak Here" below to record your voice question, or type it out.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -899,16 +899,16 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     col_mic, col_txt = st.columns([1, 2])
     
     with col_mic:
-        st.markdown("**1. Voice Record**")
+        st.markdown("**🎙️ Speak Here**")
         audio_data = mic_recorder(
-            start_prompt="🔴 Start Recording",
-            stop_prompt="⏹️ Stop Recording",
+            start_prompt="🔴 Speak Here",
+            stop_prompt="⏹️ Stop",
             just_once=True,
             key="audit_mic"
         )
     
     with col_txt:
-        st.markdown("**2. Or Type Text**")
+        st.markdown("**⌨️ Or Type Question**")
         text_question = st.text_input("Question", placeholder="Example: Last week kitne audit huay?", label_visibility="collapsed")
         ask_clicked = st.button("Ask Assistant →", type="primary", use_container_width=True)
 
