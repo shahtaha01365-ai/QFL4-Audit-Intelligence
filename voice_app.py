@@ -47,7 +47,10 @@ if "show_signup" not in st.session_state:
 st.markdown(
     """
 <style>
-#MainMenu, footer, header {visibility: hidden !important;}
+#MainMenu, footer, header, [data-testid="stHeader"] {
+    visibility: hidden !important;
+    display: none !important;
+}
 
 [data-testid="stStatusWidget"] {
     display: none !important;
@@ -58,7 +61,7 @@ st.markdown(
 }
 
 .block-container {
-    padding-top: 0.5rem !important;
+    padding-top: 0rem !important;
     padding-bottom: 3.5rem !important;
     max-width: 1500px;
 }
@@ -111,7 +114,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 
 .login-container {
     max-width: 520px;
-    margin: 0px auto;
+    margin: 10px auto;
     background: #ffffff;
     padding: 25px 35px;
     border-radius: 20px;
