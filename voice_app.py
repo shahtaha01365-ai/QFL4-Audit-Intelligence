@@ -29,11 +29,10 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model (Updated to Gemini 3.6 Flash)
+# Gemini AI Model
 AI_MODEL = "gemini-3.6-flash"
 TRANSCRIBE_MODEL = "whisper-large-v3"
 
-# Login is also read from Streamlit Secrets.
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
 LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
 
@@ -503,8 +502,8 @@ def page_title(title, description):
 
 
 def make_ai_context(d):
-    # Optimized for speed: using tail(150) so responses are much faster
-    sample = d.tail(150).copy()
+    # Ultra-fast response optimization: using tail(40) to minimize payload size and processing time
+    sample = d.tail(40).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
             sample[c] = sample[c].dt.strftime("%Y-%m-%d")
