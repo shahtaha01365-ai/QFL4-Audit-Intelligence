@@ -29,8 +29,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model (Standard stable model name)
-AI_MODEL = "gemini-1.5-flash"
+# Gemini AI Model (Updated to version-specific string to prevent 404 errors)
+AI_MODEL = "gemini-1.5-flash-001"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
 LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
@@ -226,7 +226,6 @@ st.markdown(
     margin-top:5px
 }
 
-/* Custom Unified Bordered Chat Bar Container */
 .chat-input-container {
     background: #ffffff;
     border: 2px solid #cbd5e1;
@@ -896,7 +895,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (MIC INSIDE CONTAINER & ENTER KEY SUPPORT)
+# AI ASSISTANT
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
@@ -911,7 +910,6 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    # Unified border container embedding both text input and mic recorder seamlessly
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
     col_txt, col_mic = st.columns([11, 1])
     with col_txt:
@@ -925,7 +923,6 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # JavaScript to listen for "Enter" key on the Streamlit text input and trigger form submit/action automatically
     components.html("""
     <script>
     const doc = window.parent.document;
@@ -962,14 +959,12 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     
     ask_clicked = st.button("Send Query →", type="primary", use_container_width=True)
 
-    # Handle Voice Input
     if audio_data and "bytes" in audio_data:
         with st.spinner("🎙️ Processing voice recording with Gemini..."):
             answer = ai_answer_audio(audio_data["bytes"], filtered)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI VOICE RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
-    # Handle Text Input
     if text_question.strip() and (ask_clicked or "last_q" not in st.session_state or st.session_state.last_q != text_question):
         st.session_state.last_q = text_question
         with st.spinner("🤖 Analysing audit data with Gemini..."):
