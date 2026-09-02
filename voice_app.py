@@ -29,8 +29,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model
-AI_MODEL = "gemini-1.5-flash"
+# Gemini AI Model (Updated to latest compatible model name)
+AI_MODEL = "gemini-1.5-flash-latest"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
 LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
@@ -937,18 +937,9 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
-                        // Find and click the hidden submit button or the primary action button if available
-                        const buttons = doc.querySelectorAll('button');
-                        for (let btn of buttons) {
-                            if (btn.innerText.includes("Send Query") || btn.innerText.includes("LOGIN")) {
-                                // Just trigger a custom hidden trigger or click the send button if present
-                            }
-                        }
-                        // Alternative: trigger a change event so Streamlit registers the text
                         input.dispatchEvent(new Event('input', { bubbles: true }));
                         input.dispatchEvent(new Event('change', { bubbles: true }));
                         
-                        // Look for the submit/send button and click it programmatically
                         setTimeout(() => {
                             const allBtns = doc.querySelectorAll('button');
                             for (let b of allBtns) {
@@ -978,13 +969,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI VOICE RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
-    # Handle Text Input (Triggered via click or Enter key)
-    elif (ask_clicked or text_question.strip()) and text_question.strip():
-        # Prevent double triggering if needed, or process directly
-        # To avoid running on every rerun if text remains, we can check if it's new, but standard Streamlit button/text behavior works well here.
-        pass
-
-    # Let's keep a clean execution block for text question:
+    # Handle Text Input
     if text_question.strip() and (ask_clicked or "last_q" not in st.session_state or st.session_state.last_q != text_question):
         st.session_state.last_q = text_question
         with st.spinner("🤖 Analysing audit data with Gemini..."):
