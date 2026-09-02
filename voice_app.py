@@ -28,8 +28,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model (Updated to latest stable release)
-AI_MODEL = "gemini-2.5-flash"
+# Gemini AI Model (Updated to Gemini 3.6 Flash)
+AI_MODEL = "gemini-3.6-flash"
 TRANSCRIBE_MODEL = "whisper-large-v3"
 
 # Login is also read from Streamlit Secrets.
