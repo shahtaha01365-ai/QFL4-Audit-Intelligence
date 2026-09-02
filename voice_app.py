@@ -26,18 +26,20 @@ st.set_page_config(
 EXCEL_FILE = "audit_data.xlsx"
 LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
+USERS_FILE = "users.json"
 
 # OpenAI models. API key is read from Streamlit Secrets / environment.
 AI_MODEL = "gpt-5.6-luna"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 
 # Login is also read from Streamlit Secrets.
-# If you do not create these secrets, the app will show a clear message.
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
 LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = "user"
 
 
 # ============================================================
@@ -263,8 +265,31 @@ st.markdown(
 
 
 # ============================================================
-# HELPERS
+# USERS & AUTH HELPERS
 # ============================================================
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        default_users = {}
+        if LOGIN_EMAIL:
+            default_users[LOGIN_EMAIL.strip().lower()] = {
+                "password": LOGIN_PASSWORD,
+                "status": "approved",
+                "role": "admin",
+            }
+        save_users(default_users)
+        return default_users
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_users(users_dict):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_dict, f, indent=4)
+
+
 def login():
     st.markdown(
         """
@@ -272,29 +297,53 @@ def login():
             <div class="login-logo">MASTER MOTOR • QFL4</div>
             <div class="login-title">Audit Intelligence</div>
             <div class="login-subtitle">
-                Sign in to access AI-powered audit analytics
+                Sign in or register for an account
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    if not LOGIN_EMAIL or not LOGIN_PASSWORD:
-        st.error(
-            "Login credentials are not configured. Add LOGIN_EMAIL and "
-            "LOGIN_PASSWORD to Streamlit Secrets."
-        )
-        return
+    users = load_users()
+    tab_login, tab_signup = st.tabs(["🔐 Login", "📝 Request Account"])
 
-    e = st.text_input("📧 Email")
-    p = st.text_input("🔒 Password", type="password")
+    with tab_login:
+        e = st.text_input("📧 Email", key="login_email")
+        p = st.text_input("🔒 Password", type="password", key="login_pass")
 
-    if st.button("Login →", type="primary", use_container_width=True):
-        if e.strip().lower() == LOGIN_EMAIL.lower() and p == LOGIN_PASSWORD:
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.error("Invalid email or password.")
+        if st.button("Login →", type="primary", use_container_width=True):
+            e_clean = e.strip().lower()
+            if e_clean in users:
+                if users[e_clean]["status"] == "approved":
+                    if users[e_clean]["password"] == p:
+                        st.session_state.logged_in = True
+                        st.session_state.user_email = e_clean
+                        st.session_state.role = users[e_clean].get("role", "user")
+                        st.rerun()
+                    else:
+                        st.error("Incorrect password.")
+                else:
+                    st.warning("Your account is pending admin approval.")
+            else:
+                st.error("Email not found. Please register an account.")
+
+    with tab_signup:
+        new_e = st.text_input("📧 Email Address", key="signup_email").strip().lower()
+        new_p = st.text_input("🔒 Choose Password", type="password", key="signup_pass")
+
+        if st.button("Submit Account Request", use_container_width=True):
+            if not new_e or not new_p:
+                st.error("Please fill in all fields.")
+            elif new_e in users:
+                st.error("This email is already registered or requested.")
+            else:
+                users[new_e] = {
+                    "password": new_p,
+                    "status": "pending",
+                    "role": "user",
+                }
+                save_users(users)
+                st.success("Request submitted successfully! The admin will review and approve your account.")
 
 
 def get_openai_client():
@@ -320,17 +369,7 @@ def nsum(d, c):
 
 
 def vehicle_count(d):
-    c = find_col(
-        d,
-        [
-            "Chassis No",
-            "Chassis",
-            "Chassis Number",
-            "Vehicle",
-            "Vehicle No",
-            "Vehicle Number",
-        ],
-    )
+    c = find_col(d, ["Chassis No", "Chassis", "Chassis Number", "Vehicle", "Vehicle No", "Vehicle Number"])
     if not c:
         return len(d)
     s = d[c].dropna().astype(str).str.strip()
@@ -339,31 +378,11 @@ def vehicle_count(d):
 
 
 def class_total(d, label):
-    return nsum(
-        d,
-        find_col(
-            d,
-            [
-                f"CLASS {label}",
-                f"Class {label}",
-                f"CLASS_{label}",
-            ],
-        ),
-    )
+    return nsum(d, find_col(d, [f"CLASS {label}", f"Class {label}", f"CLASS_{label}"]))
 
 
 def zone_total(d, label):
-    return nsum(
-        d,
-        find_col(
-            d,
-            [
-                f"ZONE {label}",
-                f"Zone {label}",
-                f"ZONE_{label}",
-            ],
-        ),
-    )
+    return nsum(d, find_col(d, [f"ZONE {label}", f"Zone {label}", f"ZONE_{label}"]))
 
 
 def ab_total(d):
@@ -372,48 +391,22 @@ def ab_total(d):
 
 
 def total_defects(d):
-    c = find_col(
-        d,
-        [
-            "Total",
-            "Total Defects",
-            "Defect Quantity",
-            "Defects",
-        ],
-    )
+    c = find_col(d, ["Total", "Total Defects", "Defect Quantity", "Defects"])
     if c:
         return nsum(d, c)
-
     s = sum(class_total(d, x) for x in "ABCD")
     if s:
         return s
-
-    return nsum(
-        d,
-        find_col(
-            d,
-            ["QTY", "Quantity", "Defect Qty", "Defect Quantity"],
-        ),
-    )
+    return nsum(d, find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity"]))
 
 
 @st.cache_data(ttl=30)
 def load_excel():
     d = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
-    d.columns = (
-        d.columns.astype(str)
-        .str.strip()
-        .str.replace("\n", " ", regex=False)
-        .str.replace(r"\s+", " ", regex=True)
-    )
-
-    date_col = next(
-        (x for x in d.columns if str(x).strip().lower() == "date"),
-        None,
-    )
+    d.columns = d.columns.astype(str).str.strip().str.replace("\n", " ", regex=False).str.replace(r"\s+", " ", regex=True)
+    date_col = next((x for x in d.columns if str(x).strip().lower() == "date"), None)
     if date_col:
         d[date_col] = pd.to_datetime(d[date_col], errors="coerce")
-
     return d
 
 
@@ -429,54 +422,16 @@ def page_title(title, description):
 
 def direct_answer(q, d):
     raw = q.lower()
-
-    vehicle = any(
-        x in raw
-        for x in [
-            "vehicle",
-            "vehicles",
-            "gari",
-            "gariyan",
-            "gaari",
-            "gaariyan",
-            "car",
-            "cars",
-        ]
-    )
-
-    count = any(
-        x in raw
-        for x in [
-            "how many",
-            "number of",
-            "kitni",
-            "kitne",
-            "total kitni",
-            "total kitne",
-        ]
-    )
+    vehicle = any(x in raw for x in ["vehicle", "vehicles", "gari", "gariyan", "gaari", "gaariyan", "car", "cars"])
+    count = any(x in raw for x in ["how many", "number of", "kitni", "kitne", "total kitni", "total kitne"])
 
     if vehicle and count:
         n = vehicle_count(d)
-        return (
-            f"{n} vehicles were audited. "
-            f"Roman Urdu: {n} gariyan audit hui hain."
-        )
+        return f"{n} vehicles were audited. Roman Urdu: {n} gariyan audit hui hain."
 
-    if any(
-        x in raw
-        for x in [
-            "total defect",
-            "total defects",
-            "kitne defects",
-            "defects kitne",
-        ]
-    ):
+    if any(x in raw for x in ["total defect", "total defects", "kitne defects", "defects kitne"]):
         n = total_defects(d)
-        return (
-            f"The total number of defects is {n}. "
-            f"Roman Urdu: total {n} defects hain."
-        )
+        return f"The total number of defects is {n}. Roman Urdu: total {n} defects hain."
 
     if any(x in raw for x in ["a+b", "a + b", "a plus b"]):
         return f"The total A+B defects are {ab_total(d)}."
@@ -491,130 +446,72 @@ def direct_answer(q, d):
 
 
 def make_ai_context(d):
-    # Keep the prompt reasonably small for cloud usage.
     sample = d.head(300).copy()
-
-    # Convert datetime values to strings for a clean prompt.
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
             sample[c] = sample[c].dt.strftime("%Y-%m-%d")
-
     return sample.to_string(index=False)
 
 
 def ai_answer(q, d):
-    # Deterministic answers for common KPI questions.
     fast_answer = direct_answer(q, d)
     if fast_answer:
         return fast_answer
 
     client = get_openai_client()
     if client is None:
-        return (
-            "OpenAI API key is not configured. "
-            "Please add OPENAI_API_KEY to Streamlit Secrets."
-        )
+        return "OpenAI API key is not configured. Please add OPENAI_API_KEY to Streamlit Secrets."
 
     context = make_ai_context(d)
-
     prompt = f"""
 You are the QFL4 Vehicle Audit Intelligence Assistant.
-
 STRICT DATA RULES:
 1. Use ONLY the audit data supplied below.
 2. Never invent, estimate, assume, or fabricate a number.
-3. If the supplied data does not contain enough information to answer,
-   say that the information is not available in the current audit data.
-4. Respect the active dashboard filters. The data below is already filtered.
+3. If the supplied data does not contain enough information, say it is not available.
+4. Respect active dashboard filters.
 5. Understand English, Urdu, and Roman Urdu.
-6. If the user asks in Roman Urdu, answer in clear Roman Urdu.
-7. If the user asks in Urdu, you may answer in Urdu.
-8. Keep answers short and practical.
-9. When giving a number, make it clear what the number represents.
+6. Keep answers short and practical.
 
 ACTIVE FILTERED AUDIT DATA:
-Columns:
-{", ".join(map(str, d.columns))}
+Columns: {", ".join(map(str, d.columns))}
+Rows: {context}
 
-Rows:
-{context}
-
-USER QUESTION:
-{q}
+USER QUESTION: {q}
 """
-
     try:
-        response = client.responses.create(
-            model=AI_MODEL,
-            input=prompt,
-        )
+        response = client.responses.create(model=AI_MODEL, input=prompt)
         answer = getattr(response, "output_text", "") or ""
-        answer = answer.strip()
-
-        if answer:
-            return answer
-
-        return "I could not generate an answer from the current audit data."
-
+        return answer.strip() or "I could not generate an answer from the current audit data."
     except Exception as exc:
-        msg = str(exc)
-        if "api_key" in msg.lower() or "authentication" in msg.lower():
-            return "OpenAI authentication failed. Please check OPENAI_API_KEY in Streamlit Secrets."
-        return f"Cloud AI request failed: {msg}"
+        return f"Cloud AI request failed: {exc}"
 
 
 def speech_to_text(audio_bytes):
     client = get_openai_client()
     if client is None:
-        return None, (
-            "OpenAI API key is not configured. "
-            "Please add OPENAI_API_KEY to Streamlit Secrets."
-        )
-
+        return None, "OpenAI API key is not configured."
     temp_file = "voice_input.wav"
-
     try:
         with open(temp_file, "wb") as f:
             f.write(audio_bytes)
-
         with open(temp_file, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model=TRANSCRIBE_MODEL,
-                file=audio_file,
-            )
-
-        text = getattr(transcript, "text", "") or ""
-        return text.strip(), None
-
+            transcript = client.audio.transcriptions.create(model=TRANSCRIBE_MODEL, file=audio_file)
+        return getattr(transcript, "text", "").strip(), None
     except Exception as exc:
         return None, f"Voice transcription failed: {exc}"
-
     finally:
-        try:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-        except Exception:
-            pass
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
 
 
 def speak(text):
     safe_text = json.dumps(str(text))
-    components.html(
-        f"""
-        <script>
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance({safe_text});
-        u.lang = 'en-US';
-        u.rate = 1.08;
-        speechSynthesis.speak(u);
-        </script>
-        """,
-        height=1,
-    )
+    components.html(f"""<script>speechSynthesis.cancel();const u = new SpeechSynthesisUtterance({safe_text});u.lang='en-US';speechSynthesis.speak(u);</script>""", height=1)
 
 
 # ============================================================
-# AUTHENTICATION
+# AUTHENTICATION CHECK
 # ============================================================
 if not st.session_state.logged_in:
     login()
@@ -625,10 +522,7 @@ if not st.session_state.logged_in:
 # REQUIRED FILE CHECK
 # ============================================================
 if not os.path.exists(EXCEL_FILE):
-    st.error(
-        f"{EXCEL_FILE} not found. Upload it beside voice_app.py "
-        "in your Streamlit/GitHub repository."
-    )
+    st.error(f"{EXCEL_FILE} not found. Upload it beside your app file.")
     st.stop()
 
 
@@ -657,47 +551,35 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="nav-section">ANALYTICS</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="nav-section">ANALYTICS</div>', unsafe_allow_html=True)
 
-    page = st.radio(
-        "Pages",
-        [
-            "🏠 Overview",
-            "🎙️ AI Assistant",
-            "⚠️ Total Defects",
-            "📈 Pareto Analysis",
-            "🚗 Vehicle Audit",
-            "🧩 Class & Zone",
-            "📋 Audit Data",
-        ],
-        label_visibility="collapsed",
-    )
+    nav_pages = [
+        "🏠 Overview",
+        "🎙️ AI Assistant",
+        "⚠️ Total Defects",
+        "📈 Pareto Analysis",
+        "🚗 Vehicle Audit",
+        "🧩 Class & Zone",
+        "📋 Audit Data",
+    ]
 
-    st.markdown(
-        '<div class="nav-section">SYSTEM</div>',
-        unsafe_allow_html=True,
-    )
+    # Add Manage Users tab if the logged-in user is admin
+    if st.session_state.role == "admin":
+        nav_pages.append("👥 Manage Users")
 
+    page = st.radio("Pages", nav_pages, label_visibility="collapsed")
+
+    st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
     ai_ready = get_openai_client() is not None
-    ai_status = (
-        '<span class="status-ok">● CLOUD AI READY</span>'
-        if ai_ready
-        else '<span class="status-warn">● API KEY REQUIRED</span>'
-    )
+    ai_status = '<span class="status-ok">● CLOUD AI READY</span>' if ai_ready else '<span class="status-warn">● API KEY REQUIRED</span>'
 
     st.markdown(
         f"""
         <div class="sidebar-note">
+            User: {html.escape(st.session_state.get('user_email', ''))}<br>
+            Role: {html.escape(st.session_state.get('role', 'user').upper())}<br>
             Source: {html.escape(EXCEL_FILE)}<br>
-            AI: {html.escape(AI_MODEL)}<br>
-            Voice: Cloud transcription<br>
-            <br>
-            {ai_status}<br>
-            <br>
-            Excel auto-refresh: ON
+            {ai_status}
         </div>
         """,
         unsafe_allow_html=True,
@@ -705,7 +587,39 @@ with st.sidebar:
 
     if st.button("Logout", use_container_width=True):
         st.session_state.logged_in = False
+        st.session_state.role = "user"
         st.rerun()
+
+
+# ============================================================
+# ADMIN PAGE: MANAGE USERS
+# ============================================================
+if page == "👥 Manage Users" and st.session_state.role == "admin":
+    page_title("User Approvals", "Approve or reject pending account registration requests.")
+    users = load_users()
+    pending_list = [email for email, info in users.items() if info["status"] == "pending"]
+
+    if not pending_list:
+        st.info("No pending user registration requests right now.")
+    else:
+        st.write(f"Found **{len(pending_list)}** pending account request(s):")
+        for email in pending_list:
+            c1, c2, c3 = st.columns([3, 1, 1])
+            with c1:
+                st.markdown(f"**{email}**")
+            with c2:
+                if st.button("Approve", key=f"app_{email}", type="primary"):
+                    users[email]["status"] = "approved"
+                    save_users(users)
+                    st.success(f"Approved {email}!")
+                    st.rerun()
+            with c3:
+                if st.button("Reject", key=f"rej_{email}"):
+                    del users[email]
+                    save_users(users)
+                    st.warning(f"Rejected and removed {email}.")
+                    st.rerun()
+    st.stop()
 
 
 # ============================================================
@@ -713,7 +627,6 @@ with st.sidebar:
 # ============================================================
 if page == "🏠 Overview":
     st.markdown('<div class="logo-area">', unsafe_allow_html=True)
-
     if os.path.exists(LOGO_FILE):
         st.image(LOGO_FILE, width=320)
     else:
@@ -723,166 +636,76 @@ if page == "🏠 Overview":
         """
         <div class="brand-title">MASTER MOTOR • QFL4</div>
         <div class="main-title">AI AUDIT INTELLIGENCE</div>
-        <div class="main-subtitle">
-            Smart Vehicle Quality & Audit Analytics
-        </div>
+        <div class="main-subtitle">Smart Vehicle Quality & Audit Analytics</div>
         <div class="online-badge">● SYSTEM ONLINE</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
 else:
     titles = {
-        "🎙️ AI Assistant": (
-            "AI Voice Assistant",
-            "Ask audit questions in English, Urdu, or Roman Urdu.",
-        ),
-        "⚠️ Total Defects": (
-            "Total Defects",
-            "Defect performance and class distribution.",
-        ),
-        "📈 Pareto Analysis": (
-            "Pareto Analysis",
-            "Identify the highest-impact defect types.",
-        ),
-        "🚗 Vehicle Audit": (
-            "Vehicle Audit",
-            "Vehicle and chassis-level audit information.",
-        ),
-        "🧩 Class & Zone": (
-            "Class & Zone Analysis",
-            "Compare quality classes and audit zones.",
-        ),
-        "📋 Audit Data": (
-            "Audit Data",
-            "Connected Excel records used by the analytics engine.",
-        ),
+        "🎙️ AI Assistant": ("AI Voice Assistant", "Ask audit questions in English, Urdu, or Roman Urdu."),
+        "⚠️ Total Defects": ("Total Defects", "Defect performance and class distribution."),
+        "📈 Pareto Analysis": ("Pareto Analysis", "Identify the highest-impact defect types."),
+        "🚗 Vehicle Audit": ("Vehicle Audit", "Vehicle and chassis-level audit information."),
+        "🧩 Class & Zone": ("Class & Zone Analysis", "Compare quality classes and audit zones."),
+        "📋 Audit Data": ("Audit Data", "Connected Excel records used by the analytics engine."),
     }
-
-    title, description = titles[page]
-    page_title(title, description)
+    if page in titles:
+        title, description = titles[page]
+        page_title(title, description)
 
 
 # ============================================================
 # SHARED FILTERS
 # ============================================================
-st.markdown(
-    '<div class="section-title">🔎 Audit Filters</div>',
-    unsafe_allow_html=True,
-)
+st.markdown('<div class="section-title">🔎 Audit Filters</div>', unsafe_allow_html=True)
 
 date_col = find_col(df, ["Date"])
 vehicle_col = find_col(df, ["Vehicle", "Vehicle No", "Vehicle Name"])
 model_col = find_col(df, ["Model", "Model Name"])
-chassis_col = find_col(
-    df,
-    ["Chassis No", "Chassis", "Chassis Number"],
-)
+chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
 
 f1, f2, f3, f4 = st.columns(4)
 
 with f1:
-    if date_col:
-        dates = sorted(
-            df[date_col].dropna().dt.date.unique().tolist()
-        )
-    else:
-        dates = []
-
+    dates = sorted(df[date_col].dropna().dt.date.unique().tolist()) if date_col else []
     selected_dates = st.multiselect("📅 Date", dates)
 
 with f2:
-    vehicle_options = (
-        sorted(
-            df[vehicle_col]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-        if vehicle_col
-        else []
-    )
-    selected_vehicle = st.selectbox(
-        "🚗 Vehicle",
-        ["All"] + vehicle_options,
-    )
+    vehicle_options = sorted(df[vehicle_col].dropna().astype(str).unique().tolist()) if vehicle_col else []
+    selected_vehicle = st.selectbox("🚗 Vehicle", ["All"] + vehicle_options)
 
 with f3:
-    model_options = (
-        sorted(
-            df[model_col]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-        if model_col
-        else []
-    )
-    selected_model = st.selectbox(
-        "🏷️ Model",
-        ["All"] + model_options,
-    )
+    model_options = sorted(df[model_col].dropna().astype(str).unique().tolist()) if model_col else []
+    selected_model = st.selectbox("🏷️ Model", ["All"] + model_options)
 
 with f4:
-    chassis_options = (
-        sorted(
-            df[chassis_col]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-        if chassis_col
-        else []
-    )
-    selected_chassis = st.selectbox(
-        "🔢 Chassis No.",
-        ["All"] + chassis_options,
-    )
-
+    chassis_options = sorted(df[chassis_col].dropna().astype(str).unique().tolist()) if chassis_col else []
+    selected_chassis = st.selectbox("🔢 Chassis No.", ["All"] + chassis_options)
 
 filtered = df.copy()
-
 if selected_dates and date_col:
-    filtered = filtered[
-        filtered[date_col].dt.date.isin(selected_dates)
-    ]
-
+    filtered = filtered[filtered[date_col].dt.date.isin(selected_dates)]
 if selected_vehicle != "All" and vehicle_col:
-    filtered = filtered[
-        filtered[vehicle_col].astype(str) == selected_vehicle
-    ]
-
+    filtered = filtered[filtered[vehicle_col].astype(str) == selected_vehicle]
 if selected_model != "All" and model_col:
-    filtered = filtered[
-        filtered[model_col].astype(str) == selected_model
-    ]
-
+    filtered = filtered[filtered[model_col].astype(str) == selected_model]
 if selected_chassis != "All" and chassis_col:
-    filtered = filtered[
-        filtered[chassis_col].astype(str) == selected_chassis
-    ]
+    filtered = filtered[filtered[chassis_col].astype(str) == selected_chassis]
 
 
 # ============================================================
 # KPI CARDS
 # ============================================================
 if page in ["🏠 Overview", "⚠️ Total Defects"]:
-    st.markdown(
-        '<div class="section-title">📌 Key Performance Indicators</div>',
-        unsafe_allow_html=True,
-    )
-
+    st.markdown('<div class="section-title">📌 Key Performance Indicators</div>', unsafe_allow_html=True)
     kpis = [
         ("🚗 VEHICLES AUDITED", vehicle_count(filtered)),
         ("⚠️ TOTAL DEFECTS", total_defects(filtered)),
         ("🔴 CLASS A", class_total(filtered, "A")),
         ("🟠 A+B", ab_total(filtered)),
     ]
-
     for col, (label, value) in zip(st.columns(4), kpis):
         with col:
             st.markdown(
@@ -900,214 +723,48 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
 # QUALITY DISTRIBUTION
 # ============================================================
 if page in ["🏠 Overview", "⚠️ Total Defects", "🧩 Class & Zone"]:
-    st.markdown(
-        '<div class="section-title">📊 Quality Distribution</div>',
-        unsafe_allow_html=True,
-    )
-
+    st.markdown('<div class="section-title">📊 Quality Distribution</div>', unsafe_allow_html=True)
     a, b = st.columns(2)
-
     with a:
-        class_df = pd.DataFrame(
-            {
-                "Class": list("ABCD"),
-                "Defects": [
-                    class_total(filtered, x)
-                    for x in "ABCD"
-                ],
-            }
-        )
-
-        fig_class = px.bar(
-            class_df,
-            x="Class",
-            y="Defects",
-            text="Defects",
-            title="Class-wise Defect Distribution",
-        )
-        fig_class.update_layout(
-            height=380,
-            margin=dict(l=20, r=20, t=55, b=20),
-        )
-        st.plotly_chart(
-            fig_class,
-            use_container_width=True,
-        )
-
+        class_df = pd.DataFrame({"Class": list("ABCD"), "Defects": [class_total(filtered, x) for x in "ABCD"]})
+        fig_class = px.bar(class_df, x="Class", y="Defects", text="Defects", title="Class-wise Defect Distribution")
+        fig_class.update_layout(height=380, margin=dict(l=20, r=20, t=55, b=20))
+        st.plotly_chart(fig_class, use_container_width=True)
     with b:
-        zone_df = pd.DataFrame(
-            {
-                "Zone": list("ABCD"),
-                "Defects": [
-                    zone_total(filtered, x)
-                    for x in "ABCD"
-                ],
-            }
-        )
-
-        fig_zone = px.bar(
-            zone_df,
-            x="Zone",
-            y="Defects",
-            text="Defects",
-            title="Zone-wise Defect Distribution",
-        )
-        fig_zone.update_layout(
-            height=380,
-            margin=dict(l=20, r=20, t=55, b=20),
-        )
-        st.plotly_chart(
-            fig_zone,
-            use_container_width=True,
-        )
+        zone_df = pd.DataFrame({"Zone": list("ABCD"), "Defects": [zone_total(filtered, x) for x in "ABCD"]})
+        fig_zone = px.bar(zone_df, x="Zone", y="Defects", text="Defects", title="Zone-wise Defect Distribution")
+        fig_zone.update_layout(height=380, margin=dict(l=20, r=20, t=55, b=20))
+        st.plotly_chart(fig_zone, use_container_width=True)
 
 
 # ============================================================
-# PARETO DATA
+# PARETO DATA & PAGE
 # ============================================================
-defect_col = find_col(
-    filtered,
-    [
-        "Defect Type",
-        "Defect",
-        "Defect Name",
-        "Defect Description",
-        "Problem",
-    ],
-)
-
-qty_col = find_col(
-    filtered,
-    [
-        "QTY",
-        "Quantity",
-        "Defect Qty",
-        "Defect Quantity",
-        "Qty",
-    ],
-)
-
+defect_col = find_col(filtered, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+qty_col = find_col(filtered, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
 pareto = None
 
 if defect_col and qty_col:
     pareto = filtered[[defect_col, qty_col]].copy()
-    pareto[defect_col] = (
-        pareto[defect_col]
-        .astype(str)
-        .str.strip()
-    )
-    pareto[qty_col] = pd.to_numeric(
-        pareto[qty_col],
-        errors="coerce",
-    ).fillna(0)
+    pareto[defect_col] = pareto[defect_col].astype(str).str.strip()
+    pareto[qty_col] = pd.to_numeric(pareto[qty_col], errors="coerce").fillna(0)
+    pareto = pareto[~pareto[defect_col].isin(["", "nan", "None", "NaN"])]
+    pareto = pareto.groupby(defect_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
 
-    pareto = pareto[
-        ~pareto[defect_col].isin(
-            ["", "nan", "None", "NaN"]
-        )
-    ]
-
-    pareto = (
-        pareto.groupby(
-            defect_col,
-            as_index=False,
-        )[qty_col]
-        .sum()
-        .sort_values(
-            qty_col,
-            ascending=False,
-        )
-        .reset_index(drop=True)
-    )
-
-
-# ============================================================
-# PARETO PAGE
-# ============================================================
 if page in ["🏠 Overview", "📈 Pareto Analysis"]:
-    st.markdown(
-        '<div class="section-title">📈 Defect Pareto Analysis</div>',
-        unsafe_allow_html=True,
-    )
-
-    if (
-        pareto is not None
-        and not pareto.empty
-        and pareto[qty_col].sum() > 0
-    ):
+    st.markdown('<div class="section-title">📈 Defect Pareto Analysis</div>', unsafe_allow_html=True)
+    if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         total = pareto[qty_col].sum()
-        pareto["Cumulative %"] = (
-            pareto[qty_col].cumsum()
-            / total
-            * 100
-        )
-
+        pareto["Cumulative %"] = pareto[qty_col].cumsum() / total * 100
         fig_pareto = go.Figure()
-
-        fig_pareto.add_trace(
-            go.Bar(
-                x=pareto[defect_col],
-                y=pareto[qty_col],
-                name="Defect Quantity",
-                text=pareto[qty_col],
-                textposition="outside",
-            )
-        )
-
-        fig_pareto.add_trace(
-            go.Scatter(
-                x=pareto[defect_col],
-                y=pareto["Cumulative %"],
-                name="Cumulative %",
-                mode="lines+markers",
-                yaxis="y2",
-            )
-        )
-
+        fig_pareto.add_trace(go.Bar(x=pareto[defect_col], y=pareto[qty_col], name="Defect Quantity", text=pareto[qty_col], textposition="outside"))
+        fig_pareto.add_trace(go.Scatter(x=pareto[defect_col], y=pareto["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2"))
         if len(pareto) >= 2:
-            fig_pareto.add_trace(
-                go.Scatter(
-                    x=[
-                        pareto[defect_col].iloc[0],
-                        pareto[defect_col].iloc[-1],
-                    ],
-                    y=[80, 80],
-                    name="80% Target",
-                    mode="lines",
-                    line=dict(dash="dash"),
-                    yaxis="y2",
-                )
-            )
-
-        fig_pareto.update_layout(
-            title="Defect Quantity Pareto",
-            height=520,
-            xaxis=dict(tickangle=-45),
-            yaxis=dict(title="Quantity"),
-            yaxis2=dict(
-                title="Cumulative %",
-                overlaying="y",
-                side="right",
-                range=[0, 100],
-                ticksuffix="%",
-            ),
-            margin=dict(
-                l=40,
-                r=70,
-                t=65,
-                b=140,
-            ),
-        )
-
-        st.plotly_chart(
-            fig_pareto,
-            use_container_width=True,
-        )
-
+            fig_pareto.add_trace(go.Scatter(x=[pareto[defect_col].iloc[0], pareto[defect_col].iloc[-1]], y=[80, 80], name="80% Target", mode="lines", line=dict(dash="dash"), yaxis="y2"))
+        fig_pareto.update_layout(title="Defect Quantity Pareto", height=520, xaxis=dict(tickangle=-45), yaxis=dict(title="Quantity"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0, 100], ticksuffix="%"), margin=dict(l=40, r=70, t=65, b=140))
+        st.plotly_chart(fig_pareto, use_container_width=True)
     else:
-        st.info(
-            "No Pareto data available for the current filters."
-        )
+        st.info("No Pareto data available for the current filters.")
 
 
 # ============================================================
@@ -1117,149 +774,45 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
-            <div class="voice-title">
-                🎙️ AI Voice Audit Assistant
-            </div>
-            <div class="voice-subtitle">
-                Speak in English, Urdu or Roman Urdu.
-                Stop recording and the answer appears as text and voice.
-            </div>
+            <div class="voice-title">🎙️ AI Voice Audit Assistant</div>
+            <div class="voice-subtitle">Speak in English, Urdu or Roman Urdu. Stop recording and the answer appears as text and voice.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    if not get_openai_client():
-        st.warning(
-            "Cloud AI is not configured yet. Add OPENAI_API_KEY "
-            "to Streamlit Secrets to enable text and voice AI."
-        )
-
-    audio = mic_recorder(
-        start_prompt="🎤 Start Speaking",
-        stop_prompt="⏹️ Stop Recording",
-        just_once=True,
-        format="wav",
-        key="audit_voice",
-    )
-
+    audio = mic_recorder(start_prompt="🎤 Start Speaking", stop_prompt="⏹️ Stop Recording", just_once=True, format="wav", key="audit_voice")
     if audio:
         with st.spinner("🎧 Understanding your question..."):
             question, error = speech_to_text(audio["bytes"])
-
         if error:
             st.error(error)
         elif question:
-            st.markdown(
-                f"""
-                <div class="answer-card">
-                    <div class="answer-label">YOU SAID</div>
-                    <div class="answer-text">
-                        {html.escape(question)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
+            st.markdown(f'<div class="answer-card"><div class="answer-label">YOU SAID</div><div class="answer-text">{html.escape(question)}</div></div>', unsafe_allow_html=True)
             with st.spinner("🤖 Analysing audit data..."):
-                answer = ai_answer(
-                    question,
-                    filtered,
-                )
-
-            st.markdown(
-                f"""
-                <div class="answer-card">
-                    <div class="answer-label">AI RESPONSE</div>
-                    <div class="answer-text">
-                        {html.escape(answer)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
+                answer = ai_answer(question, filtered)
+            st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
             speak(answer)
 
-    st.markdown(
-        '<div class="section-title">⌨️ Ask by Text</div>',
-        unsafe_allow_html=True,
-    )
-
-    text_question = st.text_input(
-        "Question",
-        placeholder="Example: kitni gari audit hui hy?",
-        label_visibility="collapsed",
-    )
-
-    if (
-        st.button(
-            "Ask Assistant →",
-            type="primary",
-            use_container_width=True,
-        )
-        and text_question.strip()
-    ):
+    st.markdown('<div class="section-title">⌨️ Ask by Text</div>', unsafe_allow_html=True)
+    text_question = st.text_input("Question", placeholder="Example: kitni gari audit hui hy?", label_visibility="collapsed")
+    if st.button("Ask Assistant →", type="primary", use_container_width=True) and text_question.strip():
         with st.spinner("🤖 Analysing audit data..."):
-            answer = ai_answer(
-                text_question,
-                filtered,
-            )
-
-        st.markdown(
-            f"""
-            <div class="answer-card">
-                <div class="answer-label">AI RESPONSE</div>
-                <div class="answer-text">
-                    {html.escape(answer)}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+            answer = ai_answer(text_question, filtered)
+        st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
 
 # ============================================================
 # AUDIT RECORDS
 # ============================================================
-if page in [
-    "🏠 Overview",
-    "🚗 Vehicle Audit",
-    "📋 Audit Data",
-]:
-    st.markdown(
-        '<div class="section-title">📋 Audit Records</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.caption(
-        f"Showing {len(filtered)} records from {SHEET_NAME}"
-    )
-
-    st.dataframe(
-        filtered,
-        use_container_width=True,
-        height=430 if page != "🏠 Overview" else 300,
-    )
+if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
+    st.markdown('<div class="section-title">📋 Audit Records</div>', unsafe_allow_html=True)
+    st.caption(f"Showing {len(filtered)} records from {SHEET_NAME}")
+    st.dataframe(filtered, use_container_width=True, height=430 if page != "🏠 Overview" else 300)
 
 
 # ============================================================
 # FOOTER
 # ============================================================
-st.markdown(
-    """
-    <div style="
-        text-align:center;
-        color:#94a3b8;
-        font-size:11px;
-        margin-top:40px
-    ">
-        QFL4 AI Audit Intelligence • Master Motor • FUSO •
-        AI-Powered Quality Analytics
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • AI-Powered Quality Analytics</div>', unsafe_allow_html=True)
