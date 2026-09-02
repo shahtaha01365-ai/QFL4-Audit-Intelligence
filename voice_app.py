@@ -306,9 +306,9 @@ def save_users(users_dict):
 
 
 def login():
-    # Adjusted SVG with perfectly centered elements and safe padding
+    # Perfectly scaled & compact SVG header matching container layout
     components.html("""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 190" width="100%" height="100%">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 130" width="100%" height="100%">
       <defs>
         <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#0f172a" />
@@ -319,28 +319,34 @@ def login():
           <stop offset="100%" stop-color="#cc0029" />
         </linearGradient>
         <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
-      <rect width="500" height="184" rx="16" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
-      <g transform="translate(24, 50)">
-        <polygon points="42,2 78,22 78,62 42,82 6,62 6,22" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2.5" filter="url(#glow)"/>
-        <circle cx="42" cy="42" r="16" fill="#0f172a" stroke="#ff1a40" stroke-width="1.5" stroke-dasharray="3 2"/>
-        <path d="M32 43 L39 50 L53 33" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect width="750" height="124" rx="14" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
+      
+      <!-- Left Hexagon Logo Icon -->
+      <g transform="translate(30, 26)">
+        <polygon points="34,2 62,18 62,50 34,66 6,50 6,18" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2.2" filter="url(#glow)"/>
+        <circle cx="34" cy="34" r="13" fill="#0f172a" stroke="#ff1a40" stroke-width="1.2" stroke-dasharray="2.5 1.5"/>
+        <path d="M26 34 L31 39 L43 26" fill="none" stroke="#22c55e" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
-      <g transform="translate(128, 56)">
-        <text x="0" y="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#ff1a40" letter-spacing="2.5">MASTER MOTORS • FUSO</text>
-        <text x="0" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#ffffff" letter-spacing="0.8">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
-        <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8" letter-spacing="1.2">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
+
+      <!-- Center Titles -->
+      <g transform="translate(115, 38)">
+        <text x="0" y="8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="800" fill="#ff1a40" letter-spacing="2.2">MASTER MOTORS • FUSO</text>
+        <text x="0" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="900" fill="#ffffff" letter-spacing="0.6">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
+        <text x="0" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="8.5" font-weight="600" fill="#94a3b8" letter-spacing="1">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
       </g>
-      <g transform="translate(410, 52)">
-        <rect width="66" height="80" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
-        <text x="33" y="38" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
-        <text x="33" y="60" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
+
+      <!-- Right FQCM Badge -->
+      <g transform="translate(635, 26)">
+        <rect width="80" height="72" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+        <text x="40" y="33" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
+        <text x="40" y="53" text-anchor="middle" font-family="sans-serif" font-size="7.5" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
       </g>
     </svg>
-    """, height=190)
+    """, height=135)
 
     users = load_users()
 
