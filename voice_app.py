@@ -44,7 +44,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING (Hiding Streamlit Cloud Floating "Manage app" Button)
+# STYLING (Hiding Manage App & Styling Text Box Borders)
 # ============================================================
 st.markdown(
     """
@@ -61,6 +61,19 @@ st.markdown(
 [data-testid="stSidebar"]{
     background:#fff!important;
     border-right:1px solid #dce3ea
+}
+
+/* === LOGIN & SIGNUP TEXT BOX BORDER FIX === */
+.stTextInput input {
+    background-color: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    color: #243447 !important;
+}
+.stTextInput input:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
 }
 
 .nav-brand{
