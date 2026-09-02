@@ -8,10 +8,30 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
+from PIL import Image, ImageDraw
 
 # Google Gemini AI
 import google.generativeai as genai
 from streamlit_mic_recorder import mic_recorder
+
+
+# ============================================================
+# AUTO-GENERATE LOGO (No manual image upload needed)
+# ============================================================
+def create_logo():
+    if not os.path.exists("logo.png"):
+        try:
+            img = Image.new("RGB", (600, 160), color="#1e293b")
+            d = ImageDraw.Draw(img)
+            d.rectangle([(0, 0), (599, 159)], outline="#ff1a40", width=3)
+            d.text((30, 25), "MASTER MOTORS • FUSO", fill="#94a3b8")
+            d.text((30, 55), "QFL4 AI", fill="#ff1a40")
+            d.text((30, 105), "AUTOMOTIVE QUALITY & AUDIT INTELLIGENCE", fill="#ffffff")
+            img.save("logo.png")
+        except Exception:
+            pass
+
+create_logo()
 
 
 # ============================================================
@@ -28,7 +48,6 @@ EXCEL_FILE = "audit_data.xlsx"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model
 AI_MODEL = "gemini-3.6-flash"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
@@ -43,234 +62,111 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING
+# GLOBAL STYLING
 # ============================================================
 st.markdown(
     """
 <style>
-#MainMenu, footer{visibility:hidden}
-.stApp{background:#eef1f5}
-.block-container{max-width:1500px;padding:24px 32px 50px}
+#MainMenu, footer, header {visibility: hidden !important;}
 
-/* Hide Streamlit Cloud Floating Manage App / Status Widget */
 [data-testid="stStatusWidget"] {
     display: none !important;
 }
 
-[data-testid="stSidebar"]{
-    background:#fff!important;
-    border-right:1px solid #dce3ea
+.stApp {
+    background: #eef1f5;
 }
 
-/* === LOGIN & SIGNUP TEXT BOX BORDER FIX === */
-.stTextInput input {
-    background-color: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 8px !important;
-    padding: 10px 14px !important;
-    color: #243447 !important;
-}
-.stTextInput input:focus {
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+.block-container {
+    padding-top: 3.5rem !important;
+    padding-bottom: 3.5rem !important;
+    max-width: 1500px;
 }
 
-.nav-brand{
-    padding:8px 8px 18px;
-    border-bottom:1px solid #edf1f5;
-    margin-bottom:10px
-}
-.nav-brand-top{
-    color:#1d5fa7;
-    font-size:10px;
-    font-weight:900;
-    letter-spacing:1.8px
-}
-.nav-brand-title{
-    color:#243447;
-    font-size:21px;
-    font-weight:900;
-    margin-top:5px
-}
-.nav-caption{
-    color:#94a3b8;
-    font-size:11px;
-    margin-top:3px
-}
-.nav-section{
-    color:#94a3b8;
-    font-size:10px;
-    font-weight:900;
-    letter-spacing:1.2px;
-    padding:13px 8px 6px
-}
-.sidebar-note{
-    color:#94a3b8;
-    font-size:11px;
-    padding:8px
+[data-testid="stSidebar"] {
+    background: #fff !important;
+    border-right: 1px solid #dce3ea;
 }
 
-.page-title{
-    font-size:30px;
-    font-weight:900;
-    color:#243447;
-    margin-bottom:2px
+.nav-brand {
+    padding: 8px 8px 18px;
+    border-bottom: 1px solid #edf1f5;
+    margin-bottom: 10px;
 }
-.page-desc{
-    font-size:13px;
-    color:#718096;
-    margin-bottom:20px
-}
+.nav-brand-top { color: #1d5fa7; font-size: 10px; font-weight: 900; letter-spacing: 1.8px; }
+.nav-brand-title { color: #243447; font-size: 21px; font-weight: 900; margin-top: 5px; }
+.nav-caption { color: #94a3b8; font-size: 11px; margin-top: 3px; }
+.nav-section { color: #94a3b8; font-size: 10px; font-weight: 900; letter-spacing: 1.2px; padding: 13px 8px 6px; }
+.sidebar-note { color: #94a3b8; font-size: 11px; padding: 8px; }
 
-.main-title{
-    font-size:36px;
-    font-weight:900;
-    color:#243447;
-    margin-top:10px
-}
-.main-subtitle{
-    color:#64748b;
-    font-size:15px;
-    margin-top:6px
-}
-.online-badge{
-    display:inline-block;
-    margin-top:12px;
-    padding:6px 14px;
-    border-radius:20px;
-    background:#edf8f1;
-    color:#15803d;
-    border:1px solid #ccebd7;
-    font-size:10px;
-    font-weight:900
-}
+.page-title { font-size: 30px; font-weight: 900; color: #243447; margin-bottom: 2px; }
+.page-desc { font-size: 13px; color: #718096; margin-bottom: 20px; }
 
-.section-title{
-    font-size:20px;
-    font-weight:900;
-    color:#243447;
-    margin:24px 0 12px
-}
+.main-title { font-size: 36px; font-weight: 900; color: #243447; margin-top: 10px; }
+.main-subtitle { color: #64748b; font-size: 15px; margin-top: 6px; }
+.online-badge { display: inline-block; margin-top: 12px; padding: 6px 14px; border-radius: 20px; background: #edf8f1; color: #15803d; border: 1px solid #ccebd7; font-size: 10px; font-weight: 900; }
+.section-title { font-size: 20px; font-weight: 900; color: #243447; margin: 24px 0 12px; }
 
-.kpi{
-    background:#fff;
-    border:1px solid #e0e6ec;
-    border-radius:14px;
-    padding:18px;
-    min-height:105px;
-    box-shadow:0 5px 16px rgba(15,23,42,.04)
-}
-.kpi-label{
-    font-size:11px;
-    color:#718096;
-    font-weight:800
-}
-.kpi-value{
-    font-size:30px;
-    color:#243447;
-    font-weight:900;
-    margin-top:7px
-}
+.kpi { background: #fff; border: 1px solid #e0e6ec; border-radius: 14px; padding: 18px; min-height: 105px; box-shadow: 0 5px 16px rgba(15,23,42,.04); }
+.kpi-label { font-size: 11px; color: #718096; font-weight: 800; }
+.kpi-value { font-size: 30px; color: #243447; font-weight: 900; margin-top: 7px; }
 
-.kpi-dpu{
-    background:linear-gradient(135deg, #fff5f5, #fed7d7);
-    border:1px solid #feb2b2;
-    border-radius:14px;
-    padding:18px;
-    min-height:105px;
-    box-shadow:0 6px 18px rgba(220, 38, 38, 0.08)
-}
-.kpi-dpu .kpi-label{
-    font-size:11px;
-    color:#9b2c2c;
-    font-weight:800;
-    letter-spacing:0.5px
-}
-.kpi-dpu .kpi-value{
-    font-size:34px;
-    color:#dc2626;
-    font-weight:900;
-    margin-top:7px
-}
+.kpi-dpu { background: linear-gradient(135deg, #fff5f5, #fed7d7); border: 1px solid #feb2b2; border-radius: 14px; padding: 18px; min-height: 105px; box-shadow: 0 6px 18px rgba(220, 38, 38, 0.08); }
+.kpi-dpu .kpi-label { font-size: 11px; color: #9b2c2c; font-weight: 800; letter-spacing: 0.5px; }
+.kpi-dpu .kpi-value { font-size: 34px; color: #dc2626; font-weight: 900; margin-top: 7px; }
 
-.voice-card{
-    padding:25px;
-    border-radius:16px;
-    background:linear-gradient(135deg,#f8fbff,#e7f0fb);
-    border:1px solid #d8e4f2;
-    margin:20px 0;
-    box-shadow:0 7px 22px rgba(37,99,235,.06)
-}
-.voice-title{
-    font-size:25px;
-    font-weight:900;
-    color:#243447
-}
-.voice-subtitle{
-    font-size:13px;
-    color:#64748b;
-    margin-top:5px
-}
+.voice-card { padding: 25px; border-radius: 16px; background: linear-gradient(135deg,#f8fbff,#e7f0fb); border: 1px solid #d8e4f2; margin: 20px 0; box-shadow: 0 7px 22px rgba(37,99,235,.06); }
+.voice-title { font-size: 25px; font-weight: 900; color: #243447; }
+.voice-subtitle { font-size: 13px; color: #64748b; margin-top: 5px; }
 
 div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) {
+    background: #ffffff; border: 2px solid #ff4b4b !important; border-radius: 14px; padding: 4px 12px; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.1); align-items: center;
+}
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) [data-baseweb="input"] { background: transparent !important; border: none !important; box-shadow: none !important; }
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) fieldset { border: none !important; }
+
+.answer-card { background: #fff; border: 1px solid #dce5ef; border-left: 4px solid #ff1a40; border-radius: 12px; padding: 17px 20px; margin-top: 12px; }
+.answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
+.answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
+
+.login-container {
+    max-width: 480px;
+    margin: 20px auto;
     background: #ffffff;
-    border: 2px solid #ff4b4b !important;
-    border-radius: 14px;
-    padding: 4px 12px;
-    box-shadow: 0 4px 20px rgba(255, 75, 75, 0.1);
-    align-items: center;
+    padding: 35px 40px;
+    border-radius: 20px;
+    border: 1px solid #e1e7ed;
+    box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
 }
-div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) [data-baseweb="input"] {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+.banner-container {
+    text-align: center;
+    margin-bottom: 20px;
 }
-div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) fieldset {
-    border: none !important;
+.login-title {
+    color: #243447;
+    font-size: 28px;
+    font-weight: 900;
+    margin-bottom: 8px;
+    text-align: center;
 }
-
-.answer-card{
-    background:#fff;
-    border:1px solid #dce5ef;
-    border-left:4px solid #ff1a40;
-    border-radius:12px;
-    padding:17px 20px;
-    margin-top:12px
+.login-subtitle {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 30px;
+    text-align: center;
 }
-.answer-label{
-    font-size:10px;
-    color:#ff1a40;
-    font-weight:900;
-    letter-spacing:1.4px
+.stTextInput input {
+    background-color: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    padding: 12px 14px !important;
+    color: #243447 !important;
+    transition: all 0.3s;
 }
-.answer-text{
-    font-size:18px;
-    color:#243447;
-    font-weight:650;
-    margin-top:6px;
-    line-height:1.5
-}
-
-.login-box{
-    max-width:440px;
-    margin:10px auto 10px;
-    background:#fff;
-    padding:28px 32px;
-    border-radius:20px;
-    border:1px solid #e1e7ed;
-    box-shadow:0 18px 50px rgba(15,23,42,.08);
-    text-align:center
-}
-.login-title{
-    color:#243447;
-    font-size:26px;
-    font-weight:900;
-    margin-top:5px
-}
-.login-subtitle{
-    color:#64748b;
-    font-size:13px;
-    margin-bottom:10px
+.stTextInput input:focus {
+    background-color: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
 }
 </style>
 """,
@@ -299,140 +195,118 @@ def load_users():
     except Exception:
         return {}
 
-
 def save_users(users_dict):
     with open(USERS_FILE, "w") as f:
         json.dump(users_dict, f, indent=4)
 
 
+# ============================================================
+# PROFESSIONAL LOGIN PAGE
+# ============================================================
 def login():
-    # SVG header adjusted to be significantly higher
-    components.html("""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 110" width="100%" height="110">
-      <defs>
-        <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0f172a" />
-          <stop offset="100%" stop-color="#1e293b" />
-        </linearGradient>
-        <linearGradient id="masterRedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ff1a40" />
-          <stop offset="100%" stop-color="#cc0029" />
-        </linearGradient>
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
-      <rect width="750" height="110" rx="12" fill="url(#cardBg)" stroke="#334155" stroke-width="1.2"/>
-      
-      <!-- Left Hexagon Logo Icon (Shifted Up: y=10) -->
-      <g transform="translate(24, 10)">
-        <polygon points="30,2 54,16 54,44 30,58 6,44 6,16" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2" filter="url(#glow)"/>
-        <circle cx="30" cy="30" r="11" fill="#0f172a" stroke="#ff1a40" stroke-width="1.2" stroke-dasharray="2 1"/>
-        <path d="M23 30 L27 34 L38 23" fill="none" stroke="#22c55e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>
-
-      <!-- Center Titles (Shifted Up: y=16) -->
-      <g transform="translate(100, 16)">
-        <text x="0" y="8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" font-weight="800" fill="#ff1a40" letter-spacing="2">MASTER MOTORS • FUSO</text>
-        <text x="0" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="0.5">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
-        <text x="0" y="49" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="7.5" font-weight="600" fill="#94a3b8" letter-spacing="0.8">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
-      </g>
-
-      <!-- Right FQCM Badge (Shifted Up: y=10) -->
-      <g transform="translate(645, 10)">
-        <rect width="75" height="64" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
-        <text x="37.5" y="28" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
-        <text x="37.5" y="46" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
-      </g>
-    </svg>
-    """, height=115)
-
-    users = load_users()
-
-    if not st.session_state.show_signup:
-        st.markdown(
-            """
-            <div class="login-box">
-                <div class="login-title">Welcome Back</div>
-                <div class="login-subtitle">Sign in to access Audit Intelligence</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        if os.path.exists("logo.png"):
+            st.markdown('<div class="banner-container">', unsafe_allow_html=True)
+            st.image("logo.png", use_column_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        with st.form("login_form"):
-            e = st.text_input("Email", placeholder="name@master.com.pk")
-            p = st.text_input("Password", type="password", placeholder="••••••••")
-            submitted = st.form_submit_button("LOGIN", use_container_width=True)
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        
+        users = load_users()
 
-            if submitted:
-                e_clean = e.strip().lower()
-                if e_clean in users:
-                    if users[e_clean]["status"] == "approved":
-                        if users[e_clean]["password"] == p:
-                            st.session_state.logged_in = True
-                            st.session_state.user_email = e_clean
-                            st.session_state.role = users[e_clean].get("role", "user")
-                            st.rerun()
+        if not st.session_state.show_signup:
+            st.markdown(
+                """
+                <div class="login-title">Welcome Back</div>
+                <div class="login-subtitle">Sign in to access QFL4 Audit Intelligence</div>
+                """,
+                unsafe_allow_html=True,
+            )
+            
+            with st.form("login_form"):
+                e = st.text_input("Email", placeholder="name@master.com.pk")
+                p = st.text_input("Password", type="password", placeholder="••••••••")
+                submitted = st.form_submit_button("LOGIN", use_container_width=True, type="primary")
+
+                if submitted:
+                    e_clean = e.strip().lower()
+                    if e_clean in users:
+                        if users[e_clean]["status"] == "approved":
+                            if users[e_clean]["password"] == p:
+                                st.session_state.logged_in = True
+                                st.session_state.user_email = e_clean
+                                st.session_state.role = users[e_clean].get("role", "user")
+                                st.rerun()
+                            else:
+                                st.error("Incorrect password.")
                         else:
-                            st.error("Incorrect password.")
+                            st.warning("Your account is awaiting admin approval ⏳")
                     else:
-                        st.warning("Your account is awaiting admin approval ⏳")
-                else:
-                    st.error("Email not found. Please create an account.")
+                        st.error("Email not found. Please create an account.")
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:8px;'>Don't have an account?</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:15px; margin-bottom:5px;'>Don't have an account?</p>", unsafe_allow_html=True)
             if st.button("Create Account", use_container_width=True):
                 st.session_state.show_signup = True
                 st.rerun()
 
-    else:
-        st.markdown(
-            """
-            <div class="login-box">
-                <div class="login-title">Create QFL4 Account</div>
+        else:
+            st.markdown(
+                """
+                <div class="login-title" style="font-size: 24px;">Create Account</div>
                 <div class="login-subtitle">Register for audit portal access</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
 
-        with st.form("signup_form"):
-            full_name = st.text_input("Full Name", placeholder="Taha Shahid")
-            new_e = st.text_input("Email", placeholder="name@master.com.pk").strip().lower()
-            new_p = st.text_input("Password", type="password", placeholder="••••••••")
-            confirm_p = st.text_input("Confirm Password", type="password", placeholder="••••••••")
-            
-            signup_submitted = st.form_submit_button("CREATE ACCOUNT", use_container_width=True)
+            with st.form("signup_form"):
+                full_name = st.text_input("Full Name", placeholder="Taha Shahid")
+                new_e = st.text_input("Email", placeholder="name@master.com.pk").strip().lower()
+                new_p = st.text_input("Password", type="password", placeholder="••••••••")
+                confirm_p = st.text_input("Confirm Password", type="password", placeholder="••••••••")
+                
+                signup_submitted = st.form_submit_button("CREATE ACCOUNT", use_container_width=True, type="primary")
 
-            if signup_submitted:
-                if not full_name or not new_e or not new_p or not confirm_p:
-                    st.error("Please fill in all fields.")
-                elif new_p != confirm_p:
-                    st.error("Passwords do not match.")
-                elif new_e in users:
-                    st.error("This email is already registered or requested.")
-                else:
-                    users[new_e] = {
-                        "name": full_name,
-                        "password": new_p,
-                        "status": "pending",
-                        "role": "user",
-                    }
-                    save_users(users)
-                    st.success("Account created! Status: PENDING ⏳. Waiting for admin approval.")
+                if signup_submitted:
+                    if not full_name or not new_e or not new_p or not confirm_p:
+                        st.error("Please fill in all fields.")
+                    elif new_p != confirm_p:
+                        st.error("Passwords do not match.")
+                    elif new_e in users:
+                        st.error("This email is already registered or requested.")
+                    else:
+                        users[new_e] = {
+                            "name": full_name,
+                            "password": new_p,
+                            "status": "pending",
+                            "role": "user",
+                        }
+                        save_users(users)
+                        st.success("Account created! Status: PENDING ⏳. Waiting for admin approval.")
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:8px;'>Already have an account?</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:15px; margin-bottom:5px;'>Already have an account?</p>", unsafe_allow_html=True)
             if st.button("Login", use_container_width=True):
                 st.session_state.show_signup = False
                 st.rerun()
 
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown(
+            """
+            <div style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 20px;">
+                &copy; 2026 Master Motor Corporation Ltd.<br>Powered by AI Audit Intelligence
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
 def init_gemini():
     api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
     if not api_key:
@@ -440,21 +314,17 @@ def init_gemini():
     genai.configure(api_key=api_key)
     return True
 
-
 def norm(x):
     return re.sub(r"[^a-z0-9]+", "", str(x).lower())
-
 
 def find_col(d, names):
     mapping = {norm(c): c for c in d.columns}
     return next((mapping[norm(x)] for x in names if norm(x) in mapping), None)
 
-
 def nsum(d, c):
     if not c or c not in d.columns:
         return 0
     return int(pd.to_numeric(d[c], errors="coerce").fillna(0).sum())
-
 
 def vehicle_count(d):
     c = find_col(d, ["Chassis No", "Chassis", "Chassis Number", "Vehicle", "Vehicle No", "Vehicle Number"])
@@ -464,19 +334,15 @@ def vehicle_count(d):
     s = s[s != ""]
     return int(s.nunique())
 
-
 def class_total(d, label):
     return nsum(d, find_col(d, [f"CLASS {label}", f"Class {label}", f"CLASS_{label}"]))
-
 
 def zone_total(d, label):
     return nsum(d, find_col(d, [f"ZONE {label}", f"Zone {label}", f"ZONE_{label}"]))
 
-
 def ab_total(d):
     c = find_col(d, ["A+B", "A + B", "AB", "A B"])
     return nsum(d, c) if c else class_total(d, "A") + class_total(d, "B")
-
 
 def total_defects(d):
     c = find_col(d, ["Total", "Total Defects", "Defect Quantity", "Defects"])
@@ -487,14 +353,12 @@ def total_defects(d):
         return s
     return nsum(d, find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity"]))
 
-
 def calculate_dpu(d):
     v_count = vehicle_count(d)
     if v_count == 0:
         return 0.0
     tot_def = total_defects(d)
     return round(tot_def / v_count, 2)
-
 
 @st.cache_data(ttl=30)
 def load_excel():
@@ -505,7 +369,6 @@ def load_excel():
         d[date_col] = pd.to_datetime(d[date_col], errors="coerce")
     return d
 
-
 def page_title(title, description):
     st.markdown(
         f"""
@@ -515,14 +378,12 @@ def page_title(title, description):
         unsafe_allow_html=True,
     )
 
-
 def make_ai_context(d):
     sample = d.tail(15).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
             sample[c] = sample[c].dt.strftime("%Y-%m-%d")
     return sample.to_string(index=False)
-
 
 def ai_answer(q, d):
     if not init_gemini():
@@ -556,7 +417,6 @@ USER QUESTION: {q}"""
     except Exception as exc:
         return f"Gemini AI request failed: {exc}"
 
-
 def ai_answer_audio(audio_bytes, d):
     if not init_gemini():
         return "Gemini API key is not configured."
@@ -586,7 +446,6 @@ Rows: {context}"""
         return response.text.strip() or "I could not understand the audio recording."
     except Exception as exc:
         return f"Voice processing failed: {exc}"
-
 
 def speak(text):
     safe_text = json.dumps(str(text))
