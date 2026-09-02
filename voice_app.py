@@ -28,8 +28,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Groq models (Updated to active supported model)
-AI_MODEL = "llama-3.3-70b-versatile"
+# Groq models (Updated to universally supported model)
+AI_MODEL = "llama-3.1-8b-instant"
 TRANSCRIBE_MODEL = "whisper-large-v3"
 
 # Login is also read from Streamlit Secrets.
