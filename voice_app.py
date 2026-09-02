@@ -211,7 +211,7 @@ def login():
     with col2:
         if os.path.exists("logo.png"):
             st.markdown('<div class="banner-container">', unsafe_allow_html=True)
-            st.image("logo.png", use_column_width=True)
+            st.image("logo.png", use_container_width=True) # <-- Fixed parameter here
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
