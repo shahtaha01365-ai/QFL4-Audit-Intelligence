@@ -58,7 +58,7 @@ st.markdown(
 }
 
 .block-container {
-    padding-top: 3.5rem !important;
+    padding-top: 1.5rem !important;
     padding-bottom: 3.5rem !important;
     max-width: 1500px;
 }
@@ -110,10 +110,10 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
 .login-container {
-    max-width: 460px;
-    margin: 10px auto;
+    max-width: 520px;
+    margin: 5px auto;
     background: #ffffff;
-    padding: 30px 35px;
+    padding: 25px 35px;
     border-radius: 20px;
     border: 1px solid #e1e7ed;
     box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
@@ -121,10 +121,10 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 .login-brand-box {
     background: linear-gradient(135deg, #182030, #0f172a);
     border: 1px solid #2a374c;
-    border-radius: 14px;
-    padding: 18px 20px;
-    margin-bottom: 22px;
-    box-shadow: 0 8px 25px rgba(15, 23, 42, 0.2);
+    border-radius: 16px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -132,23 +132,23 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 .brand-left {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 18px;
 }
 .brand-hex {
-    width: 48px;
-    height: 48px;
+    width: 60px;
+    height: 60px;
     background: linear-gradient(135deg, #1b2436, #111827);
-    border: 2px solid #ef4444;
+    border: 2.5px solid #ef4444;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
 .brand-check {
     color: #22c55e;
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 900;
 }
 .brand-texts {
@@ -157,53 +157,53 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 }
 .brand-top-sub {
     color: #ef4444;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 900;
-    letter-spacing: 1.5px;
-    margin-bottom: 2px;
+    letter-spacing: 1.8px;
+    margin-bottom: 3px;
 }
 .brand-main-title {
     display: flex;
     align-items: baseline;
-    gap: 6px;
-    margin-bottom: 2px;
+    gap: 8px;
+    margin-bottom: 3px;
 }
 .brand-qfl {
     color: #ffffff;
-    font-size: 20px;
+    font-size: 26px;
     font-weight: 900;
     letter-spacing: 0.5px;
 }
 .brand-ai {
     color: #ef4444;
-    font-size: 20px;
+    font-size: 26px;
     font-weight: 900;
 }
 .brand-desc {
     color: #94a3b8;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.9px;
 }
 .brand-fqcm-box {
-    border: 1px solid #475569;
-    border-radius: 8px;
-    padding: 6px 10px;
+    border: 1.5px solid #475569;
+    border-radius: 10px;
+    padding: 8px 14px;
     text-align: center;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
 }
 .brand-fqcm-text {
     color: #ef4444;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 900;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
 }
 .brand-fqcm-active {
     color: #22c55e;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 800;
-    letter-spacing: 1px;
-    margin-top: 1px;
+    letter-spacing: 1.2px;
+    margin-top: 2px;
 }
 
 .login-title {
@@ -216,7 +216,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 .login-subtitle {
     color: #64748b;
     font-size: 13.5px;
-    margin-bottom: 25px;
+    margin-bottom: 22px;
     text-align: center;
 }
 .stTextInput input {
@@ -268,11 +268,11 @@ def save_users(users_dict):
 # PROFESSIONAL LOGIN PAGE
 # ============================================================
 def login():
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 2.2, 1])
     
     with col2:
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        
         st.markdown(
             """
             <div class="login-brand-box">
@@ -297,8 +297,6 @@ def login():
             """,
             unsafe_allow_html=True,
         )
-        
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
         
         users = load_users()
 
@@ -380,7 +378,7 @@ def login():
         
         st.markdown(
             """
-            <div style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 20px;">
+            <div style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 15px;">
                 &copy; 2026 Master Motor Corporation Ltd.<br>Powered by AI Audit Intelligence
             </div>
             """,
@@ -961,7 +959,7 @@ components.html("""
 }
 .footer-text {
     font-size: 10.5px;
-    line-height: 1.4;
+    line-align: 1.4;
     color: #9ca3af;
     margin-bottom: 4px;
 }
