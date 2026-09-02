@@ -8,8 +8,8 @@ import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Free Cloud AI (Groq)
-from groq import Groq
+# Google Gemini AI
+import google.generativeai as genai
 from streamlit_mic_recorder import mic_recorder
 
 
@@ -28,9 +28,9 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Groq models (Using the most stable legacy model supported everywhere)
-DEFAULT_AI_MODEL = "llama3-8b-8192"
-TRANSCRIBE_MODEL = "whisper-large-v3"
+# Gemini AI Model
+AI_MODEL = "gemini-1.5-flash"
+TRANSCRIBE_MODEL = "whisper-large-v3" # Groq whisper agr chal raha hai toh theek, warna text input zbrdast chalega
 
 # Login is also read from Streamlit Secrets.
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
@@ -418,11 +418,12 @@ def login():
                 st.rerun()
 
 
-def get_groq_client():
-    api_key = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
+def init_gemini():
+    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
     if not api_key:
-        return None
-    return Groq(api_key=api_key)
+        return False
+    genai.configure(api_key=api_key)
+    return True
 
 
 def norm(x):
@@ -508,10 +509,9 @@ def make_ai_context(d):
     return sample.to_string(index=False)
 
 
-def ai_answer(q, d, ai_model_name):
-    client = get_groq_client()
-    if client is None:
-        return "Groq API key is not configured. Please add GROQ_API_KEY to Streamlit Secrets."
+def ai_answer(q, d):
+    if not init_gemini():
+        return "Gemini API key is not configured. Please add GEMINI_API_KEY to Streamlit Secrets."
 
     context = make_ai_context(d)
     prompt = f"""
@@ -531,35 +531,12 @@ Rows: {context}
 USER QUESTION: {q}
 """
     try:
-        response = client.chat.completions.create(
-            model=ai_model_name,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        answer = response.choices[0].message.content
+        model = genai.GenerativeModel(AI_MODEL)
+        response = model.generate_content(prompt)
+        answer = response.text
         return answer.strip() or "I could not generate an answer from the current audit data."
     except Exception as exc:
-        return f"Groq AI request failed: {exc}"
-
-
-def speech_to_text(audio_bytes):
-    client = get_groq_client()
-    if client is None:
-        return None, "Groq API key is not configured."
-    temp_file = "voice_input.wav"
-    try:
-        with open(temp_file, "wb") as f:
-            f.write(audio_bytes)
-        with open(temp_file, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model=TRANSCRIBE_MODEL,
-                file=(temp_file, audio_file.read())
-            )
-        return getattr(transcript, "text", "").strip(), None
-    except Exception as exc:
-        return None, f"Voice transcription failed: {exc}"
-    finally:
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
+        return f"Gemini AI request failed: {exc}"
 
 
 def speak(text):
@@ -625,12 +602,9 @@ with st.sidebar:
 
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
 
-    st.markdown('<div class="nav-section">SYSTEM SETTINGS</div>', unsafe_allow_html=True)
-    # Added model selector in sidebar so you can change it if needed without touching code
-    selected_ai_model = st.text_input("Groq AI Model", value=DEFAULT_AI_MODEL)
-
-    ai_ready = get_groq_client() is not None
-    ai_status = '<span class="status-ok">● GROQ AI READY</span>' if ai_ready else '<span class="status-warn">● GROQ KEY REQUIRED</span>'
+    st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
+    ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
+    ai_status = '<span class="status-ok">● GEMINI AI READY</span>' if ai_ready else '<span class="status-warn">● GEMINI KEY REQUIRED</span>'
 
     st.markdown(
         f"""
@@ -871,37 +845,24 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI VOICE ASSISTANT
+# AI ASSISTANT (TEXT)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
-            <div class="voice-title">🎙️ AI Voice Audit Assistant</div>
+            <div class="voice-title">🎙️ AI Audit Assistant (Gemini Powered)</div>
             <div class="voice-subtitle">Ask anything in English, Urdu or Roman Urdu (e.g., "is date ko konsi gari audit hui?", "is gari mein kitne defects hain?").</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    audio = mic_recorder(start_prompt="🎤 Start Speaking", stop_prompt="⏹️ Stop Recording", just_once=True, format="wav", key="audit_voice")
-    if audio:
-        with st.spinner("🎧 Understanding your question..."):
-            question, error = speech_to_text(audio["bytes"])
-        if error:
-            st.error(error)
-        elif question:
-            st.markdown(f'<div class="answer-card"><div class="answer-label">YOU SAID</div><div class="answer-text">{html.escape(question)}</div></div>', unsafe_allow_html=True)
-            with st.spinner("🤖 Analysing audit data..."):
-                answer = ai_answer(question, filtered, selected_ai_model)
-            st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
-            speak(answer)
-
-    st.markdown('<div class="section-title">⌨️ Ask by Text</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">⌨️ Ask Assistant</div>', unsafe_allow_html=True)
     text_question = st.text_input("Question", placeholder="Example: 15 August ko konsi gari audit hui aur kitne defects thay?", label_visibility="collapsed")
     if st.button("Ask Assistant →", type="primary", use_container_width=True) and text_question.strip():
-        with st.spinner("🤖 Analysing audit data..."):
-            answer = ai_answer(text_question, filtered, selected_ai_model)
+        with st.spinner("🤖 Analysing audit data with Gemini..."):
+            answer = ai_answer(text_question, filtered)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
@@ -918,4 +879,4 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 # ============================================================
 # FOOTER
 # ============================================================
-st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • AI-Powered Quality Analytics</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • Powered by Google Gemini</div>', unsafe_allow_html=True)
