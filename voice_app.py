@@ -25,7 +25,6 @@ st.set_page_config(
 )
 
 EXCEL_FILE = "audit_data.xlsx"
-LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
@@ -123,37 +122,6 @@ st.markdown(
     margin-bottom:20px
 }
 
-.logo-area{
-    background:#fff;
-    border:1px solid #e1e7ed;
-    border-radius:18px;
-    padding:22px 28px;
-    text-align:center;
-    box-shadow:0 7px 22px rgba(15,23,42,.05);
-    margin-bottom:20px
-}
-.logo-area img {
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
-    max-height: 60px;
-    margin-top: 10px;
-}
-.brand-title{
-    font-size:24px;
-    font-weight:900;
-    letter-spacing:1.5px;
-    color:#1d5fa7;
-    margin-bottom:2px;
-}
-.brand-tagline{
-    font-size:13px;
-    font-weight:600;
-    letter-spacing:0.8px;
-    color:#64748b;
-    margin-bottom:16px;
-    font-style:italic;
-}
 .main-title{
     font-size:36px;
     font-weight:900;
@@ -264,14 +232,14 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 .answer-card{
     background:#fff;
     border:1px solid #dce5ef;
-    border-left:4px solid #2563eb;
+    border-left:4px solid #ff1a40;
     border-radius:12px;
     padding:17px 20px;
     margin-top:12px
 }
 .answer-label{
     font-size:10px;
-    color:#2563eb;
+    color:#ff1a40;
     font-weight:900;
     letter-spacing:1.4px
 }
@@ -285,23 +253,17 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 
 .login-box{
     max-width:440px;
-    margin:50px auto 10px;
+    margin:10px auto 10px;
     background:#fff;
-    padding:32px;
+    padding:28px 32px;
     border-radius:20px;
     border:1px solid #e1e7ed;
     box-shadow:0 18px 50px rgba(15,23,42,.08);
     text-align:center
 }
-.login-logo{
-    color:#2563eb;
-    font-size:12px;
-    font-weight:900;
-    letter-spacing:2px
-}
 .login-title{
     color:#243447;
-    font-size:28px;
+    font-size:26px;
     font-weight:900;
     margin-top:5px
 }
@@ -344,13 +306,48 @@ def save_users(users_dict):
 
 
 def login():
+    # Render Aesthetic Red Master Motors FUSO QFL4 SVG Logo Component exclusively on Login / Signup page
+    components.html("""
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="100%" height="100%">
+      <defs>
+        <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0f172a" />
+          <stop offset="100%" stop-color="#1e293b" />
+        </linearGradient>
+        <linearGradient id="masterRedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ff1a40" />
+          <stop offset="100%" stop-color="#cc0029" />
+        </linearGradient>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
+      <rect width="500" height="120" rx="18" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
+      <g transform="translate(24, 18)">
+        <polygon points="42,2 78,22 78,62 42,82 6,62 6,22" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2.5" filter="url(#glow)"/>
+        <circle cx="42" cy="42" r="16" fill="#0f172a" stroke="#ff1a40" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <path d="M32 43 L39 50 L53 33" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <g transform="translate(125, 40)">
+        <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="800" fill="#ff1a40" letter-spacing="2.5">MASTER MOTORS • FUSO</text>
+        <text x="0" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="900" fill="#ffffff" letter-spacing="0.8">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
+        <text x="0" y="47" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8" letter-spacing="1.2">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
+      </g>
+      <g transform="translate(415, 22)">
+        <rect width="66" height="76" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+        <text x="33" y="36" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
+        <text x="33" y="58" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
+      </g>
+    </svg>
+    """, height=130)
+
     users = load_users()
 
     if not st.session_state.show_signup:
         st.markdown(
             """
             <div class="login-box">
-                <div class="login-logo">MASTER MOTOR • QFL4</div>
                 <div class="login-title">Welcome Back</div>
                 <div class="login-subtitle">Sign in to access Audit Intelligence</div>
             </div>
@@ -390,7 +387,6 @@ def login():
         st.markdown(
             """
             <div class="login-box">
-                <div class="login-logo">MASTER MOTOR • QFL4</div>
                 <div class="login-title">Create QFL4 Account</div>
                 <div class="login-subtitle">Register for audit portal access</div>
             </div>
@@ -715,23 +711,9 @@ if page == "👥 Manage Users":
 if page == "🏠 Overview":
     st.markdown(
         """
-        <div class="logo-area">
-            <div class="brand-title">FUSO MASTER MOTOR QFL4 AUDIT INTELLIGENCE</div>
-            <div class="brand-tagline">A Vision of Mr. Ather Ali Darbari</div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if os.path.exists(LOGO_FILE):
-        st.image(LOGO_FILE)
-    else:
-        st.warning(f"{LOGO_FILE} not found.")
-
-    st.markdown(
-        """
         <div class="main-title">AI AUDIT INTELLIGENCE</div>
         <div class="main-subtitle">Smart Vehicle Quality & Audit Analytics</div>
         <div class="online-badge">● SYSTEM ONLINE</div>
-        </div>
         """,
         unsafe_allow_html=True,
     )
@@ -997,7 +979,7 @@ components.html("""
     margin-top: 20px;
     margin-bottom: 20px;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    border-top: 4px solid #1d5fa7;
+    border-top: 4px solid #ff1a40;
 }
 .footer-grid {
     display: flex;
