@@ -29,9 +29,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model
-AI_MODEL = "gemini-3.6-flash"
-TRANSCRIBE_MODEL = "whisper-large-v3"
+# Gemini AI Model (Using 1.5 Flash for speed & stability)
+AI_MODEL = "gemini-1.5-flash"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
 LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
@@ -502,7 +501,6 @@ def page_title(title, description):
 
 
 def make_ai_context(d):
-    # Ultra-fast response optimization: using tail(40) to minimize payload size and processing time
     sample = d.tail(40).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
@@ -542,6 +540,39 @@ USER QUESTION: {q}
         return answer.strip() or "I could not generate an answer from the current audit data."
     except Exception as exc:
         return f"Gemini AI request failed: {exc}"
+
+
+def ai_answer_audio(audio_bytes, d):
+    if not init_gemini():
+        return "Gemini API key is not configured."
+
+    context = make_ai_context(d)
+    current_date_str = datetime.now().strftime("%Y-%m-%d")
+    
+    prompt = f"""
+You are the QFL4 Vehicle Audit Intelligence Assistant for Master Motors FUSO.
+CURRENT SYSTEM DATE: {current_date_str}
+
+STRICT DATA RULES:
+1. Listen to the user's voice question and use ONLY the audit data supplied below to answer questions about vehicles, dates, chassis, classes, zones, DPU, and defect quantities.
+2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
+3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If no records match, state that no vehicles were audited during that period.
+4. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu) and reply in the EXACT SAME language.
+5. Keep answers accurate, practical, and clear.
+
+ACTIVE FILTERED AUDIT DATA:
+Columns: {", ".join(map(str, d.columns))}
+Rows: {context}
+"""
+    try:
+        model = genai.GenerativeModel(AI_MODEL)
+        response = model.generate_content([
+            {"mime_type": "audio/webm", "data": audio_bytes},
+            prompt
+        ])
+        return response.text.strip() or "I could not understand the audio recording."
+    except Exception as exc:
+        return f"Voice processing failed: {exc}"
 
 
 def speak(text):
@@ -689,7 +720,7 @@ if page == "🏠 Overview":
     )
 else:
     titles = {
-        "🎙️ AI Assistant": ("AI Voice Assistant", "Ask audit questions in English, Urdu, or Roman Urdu."),
+        "🎙️ AI Assistant": ("AI Voice Assistant", "Ask audit questions in English, Urdu, or Roman Urdu via voice or text."),
         "⚠️ Total Defects": ("Total Defects", "Defect performance and class distribution."),
         "📈 Pareto Analysis": ("Pareto Analysis", "Identify the highest-impact defect types."),
         "🚗 Vehicle Audit": ("Vehicle Audit", "Vehicle and chassis-level audit information."),
@@ -850,22 +881,46 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (TEXT)
+# AI ASSISTANT (VOICE & TEXT)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
-            <div class="voice-title">🎙️ AI Audit Assistant (Gemini Powered)</div>
-            <div class="voice-subtitle">Ask anything in English, Urdu or Roman Urdu (e.g., "is date ko konsi gari audit hui?", "is gari mein kitne defects hain?").</div>
+            <div class="voice-title">🎙️ AI Voice & Text Assistant (Gemini Powered)</div>
+            <div class="voice-subtitle">Aap microphone button par click kar ke bol sakte hain ya neeche type kar sakte hain (English, Urdu, ya Roman Urdu).</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="section-title">⌨️ Ask Assistant</div>', unsafe_allow_html=True)
-    text_question = st.text_input("Question", placeholder="Example: 15 August ko konsi gari audit hui aur kitne defects thay?", label_visibility="collapsed")
-    if st.button("Ask Assistant →", type="primary", use_container_width=True) and text_question.strip():
+    st.markdown('<div class="section-title">🎙️ Speak or Type Question</div>', unsafe_allow_html=True)
+    
+    col_mic, col_txt = st.columns([1, 2])
+    
+    with col_mic:
+        st.markdown("**1. Voice Record**")
+        audio_data = mic_recorder(
+            start_prompt="🔴 Start Recording",
+            stop_prompt="⏹️ Stop Recording",
+            just_once=True,
+            key="audit_mic"
+        )
+    
+    with col_txt:
+        st.markdown("**2. Or Type Text**")
+        text_question = st.text_input("Question", placeholder="Example: Last week kitne audit huay?", label_visibility="collapsed")
+        ask_clicked = st.button("Ask Assistant →", type="primary", use_container_width=True)
+
+    # Handle Voice Input
+    if audio_data and "bytes" in audio_data:
+        with st.spinner("🎙️ Processing voice recording with Gemini..."):
+            answer = ai_answer_audio(audio_data["bytes"], filtered)
+        st.markdown(f'<div class="answer-card"><div class="answer-label">AI VOICE RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
+        speak(answer)
+
+    # Handle Text Input
+    elif ask_clicked and text_question.strip():
         with st.spinner("🤖 Analysing audit data with Gemini..."):
             answer = ai_answer(text_question, filtered)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
