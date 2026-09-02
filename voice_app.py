@@ -187,7 +187,6 @@ st.markdown(
     margin-top:7px
 }
 
-/* Aesthetic Red DPU Card Styling */
 .kpi-dpu{
     background:linear-gradient(135deg, #fff5f5, #fed7d7);
     border:1px solid #feb2b2;
@@ -501,37 +500,8 @@ def page_title(title, description):
     )
 
 
-def direct_answer(q, d):
-    raw = q.lower()
-    vehicle = any(x in raw for x in ["vehicle", "vehicles", "gari", "gariyan", "gaari", "gaariyan", "car", "cars"])
-    count = any(x in raw for x in ["how many", "number of", "kitni", "kitne", "total kitni", "total kitne"])
-
-    if vehicle and count:
-        n = vehicle_count(d)
-        return f"{n} vehicles were audited. Roman Urdu: {n} gariyan audit hui hain."
-
-    if any(x in raw for x in ["total defect", "total defects", "kitne defects", "defects kitne"]):
-        n = total_defects(d)
-        return f"The total number of defects is {n}. Roman Urdu: total {n} defects hain."
-
-    if any(x in raw for x in ["dpu", "defects per unit"]):
-        dpu_val = calculate_dpu(d)
-        return f"The current DPU (Defects Per Unit) is {dpu_val}."
-
-    if any(x in raw for x in ["a+b", "a + b", "a plus b"]):
-        return f"The total A+B defects are {ab_total(d)}."
-
-    for label in "ABCD":
-        if f"class {label.lower()}" in raw:
-            return f"There are {class_total(d, label)} Class {label} defects."
-        if f"zone {label.lower()}" in raw:
-            return f"There are {zone_total(d, label)} defects in Zone {label}."
-
-    return None
-
-
 def make_ai_context(d):
-    sample = d.head(300).copy()
+    sample = d.head(500).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
             sample[c] = sample[c].dt.strftime("%Y-%m-%d")
@@ -539,24 +509,20 @@ def make_ai_context(d):
 
 
 def ai_answer(q, d):
-    fast_answer = direct_answer(q, d)
-    if fast_answer:
-        return fast_answer
-
     client = get_openai_client()
     if client is None:
         return "OpenAI API key is not configured. Please add OPENAI_API_KEY to Streamlit Secrets."
 
     context = make_ai_context(d)
     prompt = f"""
-You are the QFL4 Vehicle Audit Intelligence Assistant.
+You are the QFL4 Vehicle Audit Intelligence Assistant for Master Motors FUSO.
 STRICT DATA RULES:
-1. Use ONLY the audit data supplied below.
-2. Never invent, estimate, assume, or fabricate a number.
-3. If the supplied data does not contain enough information, say it is not available.
+1. Use ONLY the audit data supplied below to answer questions about vehicles, dates, chassis, classes (A, B, C, D), zones, DPU, and defect quantities.
+2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
+3. If the supplied data does not contain the answer, state clearly that the information is not available in the current records.
 4. Respect active dashboard filters.
-5. Understand English, Urdu, and Roman Urdu.
-6. Keep answers short and practical.
+5. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu). You MUST reply in the EXACT SAME language and script/style that the user used. For example, if the user asks in Roman Urdu (e.g., "is date ko konsi gari audit hui"), answer in natural Roman Urdu. If they ask in English, answer in English.
+6. Keep answers accurate, practical, and clear.
 
 ACTIVE FILTERED AUDIT DATA:
 Columns: {", ".join(map(str, d.columns))}
@@ -787,12 +753,11 @@ if selected_chassis != "All" and chassis_col:
 
 
 # ============================================================
-# KPI CARDS (Uniform Width & Minor Row Gap)
+# KPI CARDS
 # ============================================================
 if page in ["🏠 Overview", "⚠️ Total Defects"]:
     st.markdown('<div class="section-title">📌 Key Performance Indicators</div>', unsafe_allow_html=True)
     
-    # First Row of KPIs (4 Cards)
     kpis_row1 = [
         ("🚗 VEHICLES AUDITED", vehicle_count(filtered)),
         ("⚠️ TOTAL DEFECTS", total_defects(filtered)),
@@ -811,10 +776,8 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
                 unsafe_allow_html=True,
             )
 
-    # Minor gap between rows
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
-    # Second Row of KPIs (Class C, Class D & DPU in 4 columns grid for exact width match)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(
@@ -847,7 +810,6 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
             unsafe_allow_html=True,
         )
     with c4:
-        # Empty column to maintain exact 4-column card width alignment
         pass
 
 
@@ -870,7 +832,7 @@ if page in ["🏠 Overview", "⚠️ Total Defects", "🧩 Class & Zone"]:
 
 
 # ============================================================
-# PARETO DATA & PAGE
+# PARETO ANALYSIS
 # ============================================================
 defect_col = find_col(filtered, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
 qty_col = find_col(filtered, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
@@ -907,7 +869,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         """
         <div class="voice-card">
             <div class="voice-title">🎙️ AI Voice Audit Assistant</div>
-            <div class="voice-subtitle">Speak in English, Urdu or Roman Urdu. Stop recording and the answer appears as text and voice.</div>
+            <div class="voice-subtitle">Ask anything in English, Urdu or Roman Urdu (e.g., "is date ko konsi gari audit hui?", "is gari mein kitne defects hain?").</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -927,7 +889,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
             speak(answer)
 
     st.markdown('<div class="section-title">⌨️ Ask by Text</div>', unsafe_allow_html=True)
-    text_question = st.text_input("Question", placeholder="Example: kitni gari audit hui hy?", label_visibility="collapsed")
+    text_question = st.text_input("Question", placeholder="Example: 15 August ko konsi gari audit hui aur kitne defects thay?", label_visibility="collapsed")
     if st.button("Ask Assistant →", type="primary", use_container_width=True) and text_question.strip():
         with st.spinner("🤖 Analysing audit data..."):
             answer = ai_answer(text_question, filtered)
@@ -947,4 +909,4 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 # ============================================================
 # FOOTER
 # ============================================================
-st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • AI-Powered Quality Analytics</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • AI-Powered Quality Analytics</div>', unsafe_allow_xml=True)
