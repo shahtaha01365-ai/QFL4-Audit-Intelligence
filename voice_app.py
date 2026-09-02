@@ -110,17 +110,23 @@ st.markdown(
     background:#fff;
     border:1px solid #e1e7ed;
     border-radius:18px;
-    padding:22px 28px 28px;
+    padding:20px 28px;
     text-align:center;
     box-shadow:0 7px 22px rgba(15,23,42,.05);
     margin-bottom:20px
+}
+.logo-area img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    max-height: 60px;
 }
 .brand-title{
     font-size:13px;
     font-weight:900;
     letter-spacing:2.5px;
     color:#2563eb;
-    margin-top:7px
+    margin-top:10px
 }
 .main-title{
     font-size:36px;
@@ -667,7 +673,7 @@ if page == "👥 Manage Users" and st.session_state.role == "admin":
 if page == "🏠 Overview":
     st.markdown('<div class="logo-area">', unsafe_allow_html=True)
     if os.path.exists(LOGO_FILE):
-        st.image(LOGO_FILE, width=320)
+        st.image(LOGO_FILE)
     else:
         st.warning(f"{LOGO_FILE} not found.")
 
