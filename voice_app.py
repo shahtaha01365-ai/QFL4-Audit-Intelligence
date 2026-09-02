@@ -44,7 +44,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING (Permanent Red Border & Integrated Mic Bar)
+# STYLING (Fully Integrated Mic inside Red Border Box)
 # ============================================================
 st.markdown(
     """
@@ -226,25 +226,22 @@ st.markdown(
     margin-top:5px
 }
 
-/* Permanent Red Border Unified Input Container with Integrated Mic */
-.chat-input-container {
+/* Custom Streamlit styling to merge text input & mic inside a single clean red border container */
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) {
     background: #ffffff;
     border: 2px solid #ff4b4b !important;
     border-radius: 14px;
-    padding: 6px 14px;
+    padding: 4px 12px;
     box-shadow: 0 4px 20px rgba(255, 75, 75, 0.1);
-    margin-top: 10px;
-    display: flex;
     align-items: center;
 }
-.chat-input-container:focus-within {
-    border-color: #e03131 !important;
-    box-shadow: 0 4px 24px rgba(224, 49, 49, 0.2);
-}
-.chat-input-container [data-baseweb="input"] {
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) [data-baseweb="input"] {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+}
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) fieldset {
+    border: none !important;
 }
 
 .answer-card{
@@ -902,7 +899,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (Permanent Red Border & Integrated Mic Box)
+# AI ASSISTANT (Search Bar & Mic Fully Integrated Inside Red Border)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
@@ -917,8 +914,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    # Single Permanent Red Border Container housing text input and microphone button side-by-side
-    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
+    # Text input and Microphone merged side-by-side inside the red border wrapper container via CSS selector
     col_txt, col_mic = st.columns([12, 1])
     with col_txt:
         text_question = st.text_input("Ask anything", placeholder="Ask anything about audit data, defects, or DPU...", label_visibility="collapsed")
@@ -929,7 +925,6 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
             just_once=True,
             key="audit_mic"
         )
-    st.markdown('</div>', unsafe_allow_html=True)
 
     components.html("""
     <script>
@@ -965,7 +960,6 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     </script>
     """, height=0)
     
-    # Hidden Streamlit button logic so Enter key works natively with the cleaner layout
     ask_clicked = st.button("Send Query →", type="primary", use_container_width=True)
 
     if audio_data and "bytes" in audio_data:
