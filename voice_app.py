@@ -502,7 +502,8 @@ def page_title(title, description):
 
 
 def make_ai_context(d):
-    sample = d.head(500).copy()
+    # Optimized for speed: using tail(150) so responses are much faster
+    sample = d.tail(150).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
             sample[c] = sample[c].dt.strftime("%Y-%m-%d")
