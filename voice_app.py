@@ -29,8 +29,8 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model (Updated to gemini-2.5-flash)
-AI_MODEL = "gemini-2.5-flash"
+# Gemini AI Model (Updated to gemini-3.6-flash)
+AI_MODEL = "gemini-3.6-flash"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
 LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
