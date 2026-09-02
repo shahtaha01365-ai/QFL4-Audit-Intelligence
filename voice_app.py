@@ -29,7 +29,7 @@ SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
 # Groq models (Updated to active supported model)
-AI_MODEL = "llama-3.1-70b-versatile"
+AI_MODEL = "llama-3.3-70b-versatile"
 TRANSCRIBE_MODEL = "whisper-large-v3"
 
 # Login is also read from Streamlit Secrets.
