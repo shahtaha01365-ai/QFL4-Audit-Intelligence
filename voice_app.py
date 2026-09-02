@@ -780,7 +780,7 @@ if selected_chassis != "All" and chassis_col:
 
 
 # ============================================================
-# KPI CARDS (With Aesthetic Red DPU Card)
+# KPI CARDS (Uniform Width & Minor Row Gap)
 # ============================================================
 if page in ["🏠 Overview", "⚠️ Total Defects"]:
     st.markdown('<div class="section-title">📌 Key Performance Indicators</div>', unsafe_allow_html=True)
@@ -804,8 +804,11 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
                 unsafe_allow_html=True,
             )
 
-    # Second Row of KPIs (Class C, Class D & Aesthetic Red DPU Card)
-    c1, c2, c3 = st.columns(3)
+    # Minor gap between rows
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+
+    # Second Row of KPIs (Class C, Class D & DPU in 4 columns grid for exact width match)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(
             f"""
@@ -836,6 +839,9 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
             """,
             unsafe_allow_html=True,
         )
+    with c4:
+        # Empty column to maintain exact 4-column card width alignment
+        pass
 
 
 # ============================================================
