@@ -306,8 +306,9 @@ def save_users(users_dict):
 
 
 def login():
+    # Adjusted SVG with perfectly centered elements and safe padding
     components.html("""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 170" width="100%" height="100%">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 190" width="100%" height="100%">
       <defs>
         <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#0f172a" />
@@ -322,24 +323,24 @@ def login():
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
-      <rect width="500" height="162" rx="16" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
-      <g transform="translate(24, 38)">
+      <rect width="500" height="184" rx="16" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
+      <g transform="translate(24, 50)">
         <polygon points="42,2 78,22 78,62 42,82 6,62 6,22" fill="#1e293b" stroke="url(#masterRedGrad)" stroke-width="2.5" filter="url(#glow)"/>
         <circle cx="42" cy="42" r="16" fill="#0f172a" stroke="#ff1a40" stroke-width="1.5" stroke-dasharray="3 2"/>
         <path d="M32 43 L39 50 L53 33" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
-      <g transform="translate(125, 48)">
-        <text x="0" y="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="800" fill="#ff1a40" letter-spacing="2.5">MASTER MOTORS • FUSO</text>
-        <text x="0" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="26" font-weight="900" fill="#ffffff" letter-spacing="0.8">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
-        <text x="0" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8" letter-spacing="1.2">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
+      <g transform="translate(128, 56)">
+        <text x="0" y="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#ff1a40" letter-spacing="2.5">MASTER MOTORS • FUSO</text>
+        <text x="0" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#ffffff" letter-spacing="0.8">QFL4 <tspan fill="#ff1a40">AI</tspan></text>
+        <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8" letter-spacing="1.2">AUTOMOTIVE QUALITY &amp; AUDIT INTELLIGENCE</text>
       </g>
-      <g transform="translate(410, 41)">
+      <g transform="translate(410, 52)">
         <rect width="66" height="80" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
         <text x="33" y="38" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="900" fill="#ff1a40" letter-spacing="1">FQCM</text>
         <text x="33" y="60" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#22c55e" letter-spacing="0.5">ACTIVE</text>
       </g>
     </svg>
-    """, height=170)
+    """, height=190)
 
     users = load_users()
 
