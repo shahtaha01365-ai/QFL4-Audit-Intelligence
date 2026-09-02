@@ -102,11 +102,11 @@ st.markdown(
 .voice-title { font-size: 25px; font-weight: 900; color: #243447; }
 .voice-subtitle { font-size: 13px; color: #64748b; margin-top: 5px; }
 
-div[data-testid="stHorizontalBlock"]:has(input[aria-label="Powered by fqcm"]) {
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) {
     background: #ffffff; border: 2px solid #ff4b4b !important; border-radius: 14px; padding: 4px 12px; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.1); align-items: center;
 }
-div[data-testid="stHorizontalBlock"]:has(input[aria-label="Powered by fqcm"]) [data-baseweb="input"] { background: transparent !important; border: none !important; box-shadow: none !important; }
-div[data-testid="stHorizontalBlock"]:has(input[aria-label="Powered by fqcm"]) fieldset { border: none !important; }
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) [data-baseweb="input"] { background: transparent !important; border: none !important; box-shadow: none !important; }
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fieldset { border: none !important; }
 
 .answer-card { background: #fff; border: 1px solid #dce5ef; border-left: 4px solid #ff1a40; border-radius: 12px; padding: 17px 20px; margin-top: 12px; }
 .answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
@@ -845,7 +845,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     
     col_txt, col_mic = st.columns([12, 1])
     with col_txt:
-        text_question = st.text_input("Powered by fqcm", placeholder="Powered by fqcm", label_visibility="collapsed")
+        text_question = st.text_input("POWERED BY FQCM", placeholder="POWERED BY FQCM", label_visibility="collapsed")
     with col_mic:
         audio_data = mic_recorder(
             start_prompt="🎙️",
@@ -858,7 +858,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     <script>
     const doc = window.parent.document;
     function setupEnterKey() {
-        const inputs = doc.querySelectorAll('input[aria-label="Powered by fqcm"]');
+        const inputs = doc.querySelectorAll('input[aria-label="POWERED BY FQCM"]');
         inputs.forEach(input => {
             if (!input.dataset.enterBound) {
                 input.dataset.enterBound = "true";
