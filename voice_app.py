@@ -226,6 +226,16 @@ st.markdown(
     margin-top:5px
 }
 
+/* Custom Bordered Chat Bar Container */
+.chat-input-container {
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    border-radius: 35px;
+    padding: 10px 20px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    margin-top: 15px;
+}
+
 .answer-card{
     background:#fff;
     border:1px solid #dce5ef;
@@ -881,36 +891,42 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (VOICE & TEXT)
+# AI ASSISTANT (UNIFIED BORDERED BAR)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
             <div class="voice-title">🎙️ AI Voice & Text Assistant (Gemini Powered)</div>
-            <div class="voice-subtitle">Click "Speak Here" below to record your voice question, or type it out.</div>
+            <div class="voice-subtitle">Type your question or use the microphone button inside the bar below.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="section-title">🎙️ Speak or Type Question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    col_mic, col_txt = st.columns([1, 2])
+    # Unified bordered container box matching the requested style
+    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
     
-    with col_mic:
-        st.markdown("**🎙️ Speak Here**")
-        audio_data = mic_recorder(
-            start_prompt="🔴 Speak Here",
-            stop_prompt="⏹️ Stop",
-            just_once=True,
-            key="audit_mic"
-        )
+    col_txt, col_mic = st.columns([10, 1])
     
     with col_txt:
-        st.markdown("**⌨️ Or Type Question**")
-        text_question = st.text_input("Question", placeholder="Example: Last week kitne audit huay?", label_visibility="collapsed")
-        ask_clicked = st.button("Ask Assistant →", type="primary", use_container_width=True)
+        text_question = st.text_input("Ask anything", placeholder="Ask anything...", label_visibility="collapsed")
+    
+    with col_mic:
+        audio_data = mic_recorder(
+            start_prompt="",
+            stop_prompt="⏹️",
+            just_once=True,
+            key="audit_mic",
+            icon_name="microphone",
+            icon_color="gray"
+        )
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    ask_clicked = st.button("Send Query →", type="primary", use_container_width=True)
 
     # Handle Voice Input
     if audio_data and "bytes" in audio_data:
