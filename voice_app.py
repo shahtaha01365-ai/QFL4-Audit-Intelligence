@@ -898,7 +898,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         """
         <div class="voice-card">
             <div class="voice-title">🎙️ AI Voice & Text Assistant (Gemini Powered)</div>
-            <div class="voice-subtitle">Type your question or use the microphone button inside the bar below.</div>
+            <div class="voice-subtitle">Type your question or click the microphone button inside the bar below.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -906,7 +906,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    # Unified bordered container box matching the requested style
+    # Unified bordered container box matching your requested layout
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
     
     col_txt, col_mic = st.columns([10, 1])
@@ -916,12 +916,10 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     
     with col_mic:
         audio_data = mic_recorder(
-            start_prompt="",
+            start_prompt="🎙️",
             stop_prompt="⏹️",
             just_once=True,
-            key="audit_mic",
-            icon_name="microphone",
-            icon_color="gray"
+            key="audit_mic"
         )
         
     st.markdown('</div>', unsafe_allow_html=True)
