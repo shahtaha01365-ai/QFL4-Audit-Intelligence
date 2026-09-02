@@ -29,7 +29,7 @@ LOGO_FILE = "qfl4_logos_header.png"
 SHEET_NAME = "Sheet1"
 USERS_FILE = "users.json"
 
-# Gemini AI Model (Updated to gemini-3.6-flash)
+# Gemini AI Model
 AI_MODEL = "gemini-3.6-flash"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
@@ -44,7 +44,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# STYLING
+# STYLING (Modernized Chat Bar & UI)
 # ============================================================
 st.markdown(
     """
@@ -226,13 +226,20 @@ st.markdown(
     margin-top:5px
 }
 
+/* Clean Unified Input Container */
 .chat-input-container {
     background: #ffffff;
     border: 2px solid #cbd5e1;
-    border-radius: 35px;
-    padding: 2px 12px;
-    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    border-radius: 16px;
+    padding: 8px 16px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
     margin-top: 15px;
+    display: flex;
+    align-items: center;
+}
+.chat-input-container:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 4px 24px rgba(37, 99, 235, 0.12);
 }
 .chat-input-container [data-baseweb="input"] {
     background: transparent !important;
@@ -895,14 +902,14 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT
+# AI ASSISTANT (Fixed UI Style)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
             <div class="voice-title">🎙️ AI Voice & Text Assistant (Gemini Powered)</div>
-            <div class="voice-subtitle">Type your question and press Enter, or click the microphone button inside the bar below.</div>
+            <div class="voice-subtitle">Type your question and press Enter, or click the microphone button inside the search bar.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -910,10 +917,11 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
+    # Sleek Unified Input Box UI Container
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-    col_txt, col_mic = st.columns([11, 1])
+    col_txt, col_mic = st.columns([12, 1])
     with col_txt:
-        text_question = st.text_input("Ask anything", placeholder="Ask anything...", label_visibility="collapsed")
+        text_question = st.text_input("Ask anything", placeholder="Ask anything about audit data, defects, or DPU...", label_visibility="collapsed")
     with col_mic:
         audio_data = mic_recorder(
             start_prompt="🎙️",
@@ -957,6 +965,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     </script>
     """, height=0)
     
+    # Hidden Streamlit button logic so Enter key works natively with the cleaner layout
     ask_clicked = st.button("Send Query →", type="primary", use_container_width=True)
 
     if audio_data and "bytes" in audio_data:
