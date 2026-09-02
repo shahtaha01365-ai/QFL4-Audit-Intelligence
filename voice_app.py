@@ -226,14 +226,19 @@ st.markdown(
     margin-top:5px
 }
 
-/* Custom Bordered Chat Bar Container */
+/* Custom Unified Bordered Chat Bar Container */
 .chat-input-container {
     background: #ffffff;
     border: 2px solid #cbd5e1;
     border-radius: 35px;
-    padding: 10px 20px;
+    padding: 2px 12px;
     box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
     margin-top: 15px;
+}
+.chat-input-container [data-baseweb="input"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .answer-card{
@@ -891,14 +896,14 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
 
 # ============================================================
-# AI ASSISTANT (UNIFIED BORDERED BAR)
+# AI ASSISTANT (MIC INSIDE CONTAINER & ENTER KEY SUPPORT)
 # ============================================================
 if page in ["🏠 Overview", "🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
             <div class="voice-title">🎙️ AI Voice & Text Assistant (Gemini Powered)</div>
-            <div class="voice-subtitle">Type your question or click the microphone button inside the bar below.</div>
+            <div class="voice-subtitle">Type your question and press Enter, or click the microphone button inside the bar below.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -906,14 +911,11 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 
     st.markdown('<div class="section-title">💬 Ask Audit Assistant</div>', unsafe_allow_html=True)
     
-    # Unified bordered container box matching your requested layout
+    # Unified border container embedding both text input and mic recorder seamlessly
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-    
-    col_txt, col_mic = st.columns([10, 1])
-    
+    col_txt, col_mic = st.columns([11, 1])
     with col_txt:
         text_question = st.text_input("Ask anything", placeholder="Ask anything...", label_visibility="collapsed")
-    
     with col_mic:
         audio_data = mic_recorder(
             start_prompt="🎙️",
@@ -921,8 +923,51 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
             just_once=True,
             key="audit_mic"
         )
-        
     st.markdown('</div>', unsafe_allow_html=True)
+
+    # JavaScript to listen for "Enter" key on the Streamlit text input and trigger form submit/action automatically
+    components.html("""
+    <script>
+    const doc = window.parent.document;
+    function setupEnterKey() {
+        const inputs = doc.querySelectorAll('input[aria-label="Ask anything"]');
+        inputs.forEach(input => {
+            if (!input.dataset.enterBound) {
+                input.dataset.enterBound = "true";
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        // Find and click the hidden submit button or the primary action button if available
+                        const buttons = doc.querySelectorAll('button');
+                        for (let btn of buttons) {
+                            if (btn.innerText.includes("Send Query") || btn.innerText.includes("LOGIN")) {
+                                // Just trigger a custom hidden trigger or click the send button if present
+                            }
+                        }
+                        // Alternative: trigger a change event so Streamlit registers the text
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        // Look for the submit/send button and click it programmatically
+                        setTimeout(() => {
+                            const allBtns = doc.querySelectorAll('button');
+                            for (let b of allBtns) {
+                                if (b.textContent.includes("Send Query")) {
+                                    b.click();
+                                    break;
+                                }
+                            }
+                        }, 100);
+                    }
+                });
+            }
+        });
+    }
+    const observer = new MutationObserver(setupEnterKey);
+    observer.observe(doc.body, { childList: true, subtree: true });
+    setupEnterKey();
+    </script>
+    """, height=0)
     
     ask_clicked = st.button("Send Query →", type="primary", use_container_width=True)
 
@@ -933,8 +978,15 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI VOICE RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
-    # Handle Text Input
-    elif ask_clicked and text_question.strip():
+    # Handle Text Input (Triggered via click or Enter key)
+    elif (ask_clicked or text_question.strip()) and text_question.strip():
+        # Prevent double triggering if needed, or process directly
+        # To avoid running on every rerun if text remains, we can check if it's new, but standard Streamlit button/text behavior works well here.
+        pass
+
+    # Let's keep a clean execution block for text question:
+    if text_question.strip() and (ask_clicked or "last_q" not in st.session_state or st.session_state.last_q != text_question):
+        st.session_state.last_q = text_question
         with st.spinner("🤖 Analysing audit data with Gemini..."):
             answer = ai_answer(text_question, filtered)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
