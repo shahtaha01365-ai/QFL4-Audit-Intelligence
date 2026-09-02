@@ -671,7 +671,15 @@ if page == "👥 Manage Users" and st.session_state.role == "admin":
 # PAGE HEADER
 # ============================================================
 if page == "🏠 Overview":
-    st.markdown('<div class="logo-area">', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="logo-area">
+            <div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#1d5fa7; margin-bottom:12px;">
+                FUSO • MASTER MOTOR • QFL4 AUDIT INTELLIGENCE
+            </div>
+        """,
+        unsafe_allow_html=True,
+    )
     if os.path.exists(LOGO_FILE):
         st.image(LOGO_FILE)
     else:
