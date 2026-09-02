@@ -909,4 +909,4 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 # ============================================================
 # FOOTER
 # ============================================================
-st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • AI-Powered Quality Analytics</div>', unsafe_allow_xml=True)
+st.markdown('<div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:40px">QFL4 AI Audit Intelligence • Master Motor • FUSO • AI-Powered Quality Analytics</div>', unsafe_allow_html=True)
