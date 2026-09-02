@@ -651,7 +651,8 @@ with st.sidebar:
         "📋 Audit Data",
     ]
 
-    if st.session_state.role == "admin":
+    # ONLY SHOW "👥 Manage Users" IF ROLE IS ADMIN
+    if st.session_state.get("role") == "admin":
         nav_pages.append("👥 Manage Users")
 
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
@@ -679,9 +680,13 @@ with st.sidebar:
 
 
 # ============================================================
-# ADMIN PAGE: MANAGE USERS
+# ADMIN PAGE: MANAGE USERS (STRICT SECURITY CHECK)
 # ============================================================
-if page == "👥 Manage Users" and st.session_state.role == "admin":
+if page == "👥 Manage Users":
+    if st.session_state.get("role") != "admin":
+        st.error("Access Denied: You do not have administrator privileges.")
+        st.stop()
+        
     page_title("User Approvals", "Approve or reject pending account registration requests.")
     users = load_users()
     pending_list = [email for email, info in users.items() if info["status"] == "pending"]
