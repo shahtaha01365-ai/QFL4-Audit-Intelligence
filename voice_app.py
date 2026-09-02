@@ -8,30 +8,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
-from PIL import Image, ImageDraw
 
 # Google Gemini AI
 import google.generativeai as genai
 from streamlit_mic_recorder import mic_recorder
-
-
-# ============================================================
-# AUTO-GENERATE LOGO (No manual image upload needed)
-# ============================================================
-def create_logo():
-    if not os.path.exists("logo.png"):
-        try:
-            img = Image.new("RGB", (600, 160), color="#1e293b")
-            d = ImageDraw.Draw(img)
-            d.rectangle([(0, 0), (599, 159)], outline="#ff1a40", width=3)
-            d.text((30, 25), "MASTER MOTORS • FUSO", fill="#94a3b8")
-            d.text((30, 55), "QFL4 AI", fill="#ff1a40")
-            d.text((30, 105), "AUTOMOTIVE QUALITY & AUDIT INTELLIGENCE", fill="#ffffff")
-            img.save("logo.png")
-        except Exception:
-            pass
-
-create_logo()
 
 
 # ============================================================
@@ -130,29 +110,113 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="Ask anything"]) field
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
 .login-container {
-    max-width: 480px;
-    margin: 20px auto;
+    max-width: 460px;
+    margin: 10px auto;
     background: #ffffff;
-    padding: 35px 40px;
+    padding: 30px 35px;
     border-radius: 20px;
     border: 1px solid #e1e7ed;
     box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
 }
-.banner-container {
-    text-align: center;
-    margin-bottom: 20px;
+.login-brand-box {
+    background: linear-gradient(135deg, #182030, #0f172a);
+    border: 1px solid #2a374c;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 25px rgba(15, 23, 42, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
+.brand-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.brand-hex {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #1b2436, #111827);
+    border: 2px solid #ef4444;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+.brand-check {
+    color: #22c55e;
+    font-size: 20px;
+    font-weight: 900;
+}
+.brand-texts {
+    display: flex;
+    flex-direction: column;
+}
+.brand-top-sub {
+    color: #ef4444;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    margin-bottom: 2px;
+}
+.brand-main-title {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+.brand-qfl {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+.brand-ai {
+    color: #ef4444;
+    font-size: 20px;
+    font-weight: 900;
+}
+.brand-desc {
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+.brand-fqcm-box {
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 6px 10px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.03);
+}
+.brand-fqcm-text {
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+.brand-fqcm-active {
+    color: #22c55e;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-top: 1px;
+}
+
 .login-title {
     color: #243447;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 900;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     text-align: center;
 }
 .login-subtitle {
     color: #64748b;
-    font-size: 14px;
-    margin-bottom: 30px;
+    font-size: 13.5px;
+    margin-bottom: 25px;
     text-align: center;
 }
 .stTextInput input {
@@ -209,10 +273,30 @@ def login():
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        if os.path.exists("logo.png"):
-            st.markdown('<div class="banner-container">', unsafe_allow_html=True)
-            st.image("logo.png", use_container_width=True) # <-- Fixed parameter here
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="login-brand-box">
+                <div class="brand-left">
+                    <div class="brand-hex">
+                        <span class="brand-check">✓</span>
+                    </div>
+                    <div class="brand-texts">
+                        <div class="brand-top-sub">MASTER MOTORS • FUSO</div>
+                        <div class="brand-main-title">
+                            <span class="brand-qfl">QFL4</span>
+                            <span class="brand-ai">AI</span>
+                        </div>
+                        <div class="brand-desc">AUTOMOTIVE QUALITY & AUDIT INTELLIGENCE</div>
+                    </div>
+                </div>
+                <div class="brand-fqcm-box">
+                    <div class="brand-fqcm-text">FQCM</div>
+                    <div class="brand-fqcm-active">ACTIVE</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
         
