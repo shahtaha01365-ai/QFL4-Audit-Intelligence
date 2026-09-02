@@ -122,25 +122,25 @@ st.markdown(
     max-height: 60px;
 }
 .brand-title{
-    font-size:16px;
+    font-size:26px;
     font-weight:900;
-    letter-spacing:2.5px;
+    letter-spacing:1.5px;
     color:#1d5fa7;
-    margin-top:12px
+    margin-top:14px
 }
 .brand-tagline{
-    font-size:11px;
+    font-size:13px;
     font-weight:600;
-    letter-spacing:1px;
+    letter-spacing:0.8px;
     color:#64748b;
-    margin-top:4px;
+    margin-top:6px;
     font-style:italic;
 }
 .main-title{
     font-size:36px;
     font-weight:900;
     color:#243447;
-    margin-top:5px
+    margin-top:10px
 }
 .main-subtitle{
     color:#64748b;
@@ -723,7 +723,7 @@ if page == "🏠 Overview":
 
     st.markdown(
         """
-        <div class="brand-title">FUSO MASTER MOTOR • QFL4 AUDIT INTELLIGENCE</div>
+        <div class="brand-title">FUSO MASTER MOTOR QFL4 AUDIT INTELLIGENCE</div>
         <div class="brand-tagline">A Vision of Mr. Ather Ali Darbari</div>
         <div class="main-title">AI AUDIT INTELLIGENCE</div>
         <div class="main-subtitle">Smart Vehicle Quality & Audit Analytics</div>
