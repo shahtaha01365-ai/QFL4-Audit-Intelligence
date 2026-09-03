@@ -42,27 +42,19 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# GLOBAL STYLING & STREAMLIT BRANDING / DEPLOY BUTTON HIDE
+# GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
 # ============================================================
 st.markdown(
     """
 <style>
-/* Hide Main Menu, Header, Footer, and Toolbar */
 #MainMenu, footer, header, [data-testid="stHeader"] {
     visibility: hidden !important;
     display: none !important;
 }
 
-/* Hide Deploy Button, Status Widget, and Floating Badges */
-[data-testid="stStatusWidget"], 
-.stAppDeployButton, 
-div[data-testid="stToolbar"],
-.viewerBadge_container__1QSob,
-iframe[sandbox] {
+[data-testid="stStatusWidget"], .stAppDeployButton {
     display: none !important;
     visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
 }
 
 .stApp {
@@ -985,7 +977,7 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 
 
 # ============================================================
-# PROFESSIONAL CORPORATE FOOTER
+# PROFESSIONAL CORPORATE FOOTER & BADGE REMOVER SCRIPT
 # ============================================================
 components.html("""
 <style>
@@ -1033,7 +1025,7 @@ components.html("""
 }
 .footer-text {
     font-size: 10.5px;
-    line-height: 1.4;
+    line-align: 1.4;
     color: #9ca3af;
     margin-bottom: 4px;
 }
@@ -1110,4 +1102,30 @@ components.html("""
         <div>Powered by Google Gemini AI & Streamlit | QFL4 Portal</div>
     </div>
 </div>
-""", height=300)
+
+<script>
+const removeBadge = () => {
+    const doc = window.parent.document;
+    const selectors = [
+        '.viewerBadge_container__1QSob',
+        'div[class*="viewerBadge"]',
+        '.stAppDeployButton',
+        '[data-testid="stStatusWidget"]',
+        'div[data-testid="stToolbar"]',
+        'iframe[sandbox]'
+    ];
+    selectors.forEach(selector => {
+        doc.querySelectorAll(selector).forEach(el => el.remove());
+    });
+    doc.querySelectorAll('a').forEach(el => {
+        if (el.textContent.includes('Deploy') || el.textContent.includes('Streamlit')) {
+            if (el.closest('div')) {
+                el.closest('div').remove();
+            }
+        }
+    });
+};
+removeBadge();
+setInterval(removeBadge, 500);
+</script>
+""", height=350)
