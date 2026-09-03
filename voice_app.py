@@ -487,11 +487,27 @@ def page_title(title, description):
     )
 
 def make_ai_context(d):
-    sample = d.tail(15).copy()
+    # Include a complete aggregated summary of defect types and quantities across ALL rows
+    summary_str = ""
+    defect_c = find_col(d, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+    qty_c = find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+    
+    if defect_c and qty_c:
+        agg = d.groupby(defect_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
+        summary_str = "\n\nCOMPLETE DEFECT TYPE SUMMARY (Total Quantities per Defect Type across all records):\n" + agg.to_string(index=False)
+
+    category_c = find_col(d, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
+    if category_c and qty_c:
+        agg_cat = d.groupby(category_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
+        summary_str += "\n\nCOMPLETE DEFECT CATEGORY SUMMARY:\n" + agg_cat.to_string(index=False)
+
+    sample = d.tail(20).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
             sample[c] = sample[c].dt.strftime("%Y-%m-%d")
-    return sample.to_string(index=False)
+            
+    recent_str = "\n\nRECENT AUDIT ROWS:\n" + sample.to_string(index=False)
+    return summary_str + recent_str
 
 def ai_answer(q, d):
     if not init_gemini():
@@ -504,16 +520,16 @@ def ai_answer(q, d):
 CURRENT SYSTEM DATE: {current_date_str}
 
 STRICT DATA RULES:
-1. Use ONLY the audit data supplied below to answer questions about vehicles, dates, chassis, classes (A, B, C, D), zones, DPU, and defect quantities.
-2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
+1. Use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions about defect types, quantities, vehicles, dates, chassis, classes (A, B, C, D), zones, and DPU.
+2. Never invent, estimate, assume, or fabricate a number or vehicle detail. Look up the exact numbers from the supplied summaries and rows.
 3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period.
 4. Respect active dashboard filters.
 5. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu). You MUST reply in the EXACT SAME language and script/style that the user used.
 6. Keep answers concise, accurate, and fast.
 
-ACTIVE FILTERED AUDIT DATA:
+ACTIVE FILTERED AUDIT DATA & SUMMARIES:
 Columns: {", ".join(map(str, d.columns))}
-Rows: {context}
+{context}
 
 USER QUESTION: {q}"""
 
@@ -536,14 +552,14 @@ def ai_answer_audio(audio_bytes, d):
 CURRENT SYSTEM DATE: {current_date_str}
 
 STRICT DATA RULES:
-1. Listen to the user's voice question and use ONLY the audit data supplied below to answer questions.
+1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
 3. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu) and reply in the EXACT SAME language.
 4. Keep answers concise and clear.
 
-ACTIVE FILTERED AUDIT DATA:
+ACTIVE FILTERED AUDIT DATA & SUMMARIES:
 Columns: {", ".join(map(str, d.columns))}
-Rows: {context}"""
+{context}"""
 
     try:
         model = genai.GenerativeModel(AI_MODEL)
@@ -862,7 +878,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
     st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-    # 2. Defect Category Pareto (New Addition)
+    # 2. Defect Category Pareto
     if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
         total_cat = pareto_cat[qty_col].sum()
         pareto_cat["Cumulative %"] = pareto_cat[qty_col].cumsum() / total_cat * 100
@@ -1068,7 +1084,7 @@ components.html("""
             <ul class="footer-links">
                 <li><a href="#">QFL4 Inspection Protocol</a></li>
                 <li><a href="#">MFTBC Product Audit</a></li>
-                <li><a href="#">Defect Class (A, B, C, D)</a></li>
+                <li><a href("#">Defect Class (A, B, C, D)</a></li>
                 <li><a href="#">DPU Performance Benchmarks</a></li>
             </ul>
         </div>
