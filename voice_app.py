@@ -985,6 +985,8 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
             unsafe_allow_html=True,
         )
 
+    # --- FIRST PARETO SECTION: DEFECT TYPE ---
+    st.subheader("📊 Pareto Analysis by Defect Type")
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         total = pareto[qty_col].sum()
         pareto["Cumulative %"] = pareto[qty_col].cumsum() / total * 100
@@ -1000,16 +1002,31 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
     st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
+    # --- SECOND PARETO SECTION: DEFECT CATEGORY (DEDICATED SECTION) ---
+    st.subheader("📈 Dedicated Pareto Analysis by Defect Category")
+    st.markdown("Identifies the vital categories driving the majority of defect occurrences.")
+    
     if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
         total_cat = pareto_cat[qty_col].sum()
         pareto_cat["Cumulative %"] = pareto_cat[qty_col].cumsum() / total_cat * 100
-        fig_pareto_cat = go.Figure()
-        fig_pareto_cat.add_trace(go.Bar(x=pareto_cat[category_col], y=pareto_cat[qty_col], name="Category Quantity", text=pareto_cat[qty_col], textposition="outside", marker_color="#0ea5e9"))
-        fig_pareto_cat.add_trace(go.Scatter(x=pareto_cat[category_col], y=pareto_cat["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2", line=dict(color="#ea580c", width=2.5)))
-        if len(pareto_cat) >= 2:
-            fig_pareto_cat.add_trace(go.Scatter(x=[pareto_cat[category_col].iloc[0], pareto_cat[category_col].iloc[-1]], y=[80, 80], name="80% Target", mode="lines", line=dict(dash="dash", color="#16a34a"), yaxis="y2"))
-        fig_pareto_cat.update_layout(title="Pareto Analysis by Defect Category", height=500, xaxis=dict(tickangle=-45), yaxis=dict(title="Quantity"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0, 100], ticksuffix="%"), margin=dict(l=40, r=70, t=65, b=100))
-        st.plotly_chart(fig_pareto_cat, use_container_width=True)
+        
+        # Display Data Table and Chart side-by-side or stacked cleanly
+        p_col1, p_col2 = st.columns([1, 1])
+        with p_col1:
+            st.markdown("##### Category Pareto Data Table")
+            display_cat_table = pareto_cat[[category_col, qty_col, "Cumulative %"]].copy()
+            display_cat_table["Cumulative %"] = display_cat_table["Cumulative %"].round(2)
+            st.dataframe(display_cat_table, use_container_width=True)
+            
+        with p_col2:
+            st.markdown("##### Category Dual Chart (Bars + Cumulative Line)")
+            fig_pareto_cat = go.Figure()
+            fig_pareto_cat.add_trace(go.Bar(x=pareto_cat[category_col], y=pareto_cat[qty_col], name="Category Quantity", text=pareto_cat[qty_col], textposition="outside", marker_color="#0ea5e9"))
+            fig_pareto_cat.add_trace(go.Scatter(x=pareto_cat[category_col], y=pareto_cat["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2", line=dict(color="#ea580c", width=2.5)))
+            if len(pareto_cat) >= 2:
+                fig_pareto_cat.add_trace(go.Scatter(x=[pareto_cat[category_col].iloc[0], pareto_cat[category_col].iloc[-1]], y=[80, 80], name="80% Target", mode="lines", line=dict(dash="dash", color="#16a34a"), yaxis="y2"))
+            fig_pareto_cat.update_layout(title="Pareto Trend by Defect Category", height=420, xaxis=dict(tickangle=-30), yaxis=dict(title="Quantity"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0, 100], ticksuffix="%"), margin=dict(l=30, r=60, t=50, b=80))
+            st.plotly_chart(fig_pareto_cat, use_container_width=True)
     else:
         st.info("No Defect Category column found or no data available for category Pareto.")
 
@@ -1211,7 +1228,7 @@ components.html("""
         </div>
         
         <div class="footer-col">
-            <div class="footer-heading">SYSTEM & SUPPORT</div>
+            <div class="footer-heading">SYSTEM &SUPPORT</div>
             <ul class="footer-links">
                 <li><a href="#">Gemini AI Assistant</a></li>
                 <li><a href="#">Pareto Defect Analytics</a></li>
