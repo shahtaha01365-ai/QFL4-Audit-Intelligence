@@ -113,29 +113,30 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
+/* LIGHT THEME BANNER STYLING */
 .top-header-banner {
     max-width: 520px;
     margin: 25px auto 10px auto;
-    background: linear-gradient(135deg, #182030, #0f172a);
-    border: 1.5px solid #ff1a40;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
     border-radius: 14px;
-    padding: 12px 20px;
+    padding: 14px 20px;
     text-align: center;
-    box-shadow: 0 8px 25px rgba(255, 26, 64, 0.15);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
 }
 .top-header-text {
-    color: #ffffff;
-    font-size: 17px;
+    color: #1e293b;
+    font-size: 16px;
     font-weight: 900;
     letter-spacing: 1.5px;
     text-transform: uppercase;
 }
 .top-header-sub {
-    color: #ff1a40;
+    color: #dc2626;
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 2px;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
 .login-brand-box {
