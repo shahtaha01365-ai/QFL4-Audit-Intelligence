@@ -115,7 +115,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 /* Top Header Banner Style */
 .top-header-banner {
     max-width: 520px;
-    margin: 15px auto 5px auto;
+    margin: 25px auto 10px auto;
     background: linear-gradient(135deg, #182030, #0f172a);
     border: 1.5px solid #ff1a40;
     border-radius: 14px;
@@ -297,7 +297,7 @@ def save_users(users_dict):
 # PROFESSIONAL LOGIN PAGE
 # ============================================================
 def login():
-    # Render the top custom banner replacing the blank box
+    # Render the top custom banner cleanly
     st.markdown(
         """
         <div class="top-header-banner">
