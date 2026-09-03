@@ -630,9 +630,23 @@ with st.sidebar:
     ]
 
     if st.session_state.get("role") == "admin":
+        nav_pages.append("➕ Add Audit Data")
         nav_pages.append("👥 Manage Users")
 
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
+
+    # SIDEBAR EXCEL FILE UPLOADER (ADMIN ONLY)
+    if st.session_state.get("role") == "admin":
+        st.markdown('<div class="nav-section">DATA MANAGEMENT</div>', unsafe_allow_html=True)
+        uploaded_excel = st.file_uploader("Upload New Excel Sheet", type=["xlsx", "xls"], key="sidebar_excel_upload")
+        if uploaded_excel is not None:
+            try:
+                with open(EXCEL_FILE, "wb") as f:
+                    f.write(uploaded_excel.getbuffer())
+                st.success("Excel sheet updated successfully! 🎉")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error saving file: {e}")
 
     st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
     ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
@@ -689,6 +703,68 @@ if page == "👥 Manage Users":
                     save_users(users)
                     st.warning(f"Rejected and removed {email}.")
                     st.rerun()
+    st.stop()
+
+
+# ============================================================
+# ADMIN PAGE: ADD AUDIT DATA
+# ============================================================
+if page == "➕ Add Audit Data":
+    if st.session_state.get("role") != "admin":
+        st.error("Access Denied: Yeh page sirf Administrator ke liye hai.")
+        st.stop()
+        
+    page_title("Admin Data Entry", "System mein naya audit record darj karein.")
+    
+    with st.form("add_data_form"):
+        st.markdown("### Naya Audit Record Bharein")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            audit_date = st.date_input("Date", datetime.now())
+            vehicle_name = st.text_input("Vehicle Name", "FUSO Canter")
+            model_name = st.text_input("Model", "FE84")
+            chassis_no = st.text_input("Chassis No.", "CH-9999")
+            
+        with c2:
+            defect_type = st.text_input("Defect Type", "Paint Scratch")
+            category = st.text_input("Defect Category", "Body Shop")
+            class_choice = st.selectbox("Defect Class", ["A", "B", "C", "D"])
+            zone_choice = st.selectbox("Zone", ["A", "B", "C", "D"])
+            defect_qty = st.number_input("Defect Quantity (QTY)", min_value=1, value=1)
+            
+        submitted = st.form_submit_button("Save Record to Excel", type="primary", use_container_width=True)
+        
+        if submitted:
+            try:
+                df_existing = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+                
+                new_entry = {
+                    "Date": pd.to_datetime(audit_date),
+                    "Vehicle": vehicle_name,
+                    "Model": model_name,
+                    "Chassis No": chassis_no,
+                    "Defect Type": defect_type,
+                    "Defect Category": category,
+                    "QTY": defect_qty
+                }
+                
+                class_col_name = f"CLASS {class_choice}"
+                if class_col_name in df_existing.columns:
+                    new_entry[class_col_name] = defect_qty
+                    
+                zone_col_name = f"ZONE {zone_choice}"
+                if zone_col_name in df_existing.columns:
+                    new_entry[zone_col_name] = defect_qty
+
+                df_updated = pd.concat([df_existing, pd.DataFrame([new_entry])], ignore_index=True)
+                df_updated.to_excel(EXCEL_FILE, sheet_name=SHEET_NAME, index=False)
+                
+                st.success("Naya audit record kamyabi ke sath Excel sheet mein save ho gaya hai! 🎉")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Data save karne mein error aya: {e}")
+                
     st.stop()
 
 
