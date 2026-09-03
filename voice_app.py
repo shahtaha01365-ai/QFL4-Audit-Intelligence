@@ -99,6 +99,35 @@ st.markdown(
 .kpi-dpu .kpi-label { font-size: 11px; color: #9b2c2c; font-weight: 800; letter-spacing: 0.5px; }
 .kpi-dpu .kpi-value { font-size: 34px; color: #dc2626; font-weight: 900; margin-top: 7px; }
 
+/* ACTION ALERT BOX FOR PARETO */
+.pareto-alert-box {
+    background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+    border: 2px solid #f43f5e;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 6px 20px rgba(244, 63, 94, 0.12);
+}
+.pareto-alert-title {
+    color: #be123c;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.pareto-alert-main {
+    color: #881337;
+    font-size: 20px;
+    font-weight: 900;
+    margin-top: 4px;
+}
+.pareto-alert-desc {
+    color: #9f1239;
+    font-size: 13px;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
 .voice-card { padding: 25px; border-radius: 16px; background: linear-gradient(135deg,#f8fbff,#e7f0fb); border: 1px solid #d8e4f2; margin: 20px 0; box-shadow: 0 7px 22px rgba(37,99,235,.06); }
 .voice-title { font-size: 25px; font-weight: 900; color: #243447; }
 .voice-subtitle { font-size: 13px; color: #64748b; margin-top: 5px; }
@@ -935,8 +964,27 @@ if category_col and qty_col:
     pareto_cat = pareto_cat.groupby(category_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
 
 if page in ["🏠 Overview", "📈 Pareto Analysis"]:
-    st.markdown('<div class="section-title">📈 Defect Pareto Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📈 Defect Pareto Analysis & Action Focus</div>', unsafe_allow_html=True)
     
+    # DYNAMIC HIGHLIGHT / ACTION FOCUS BANNER
+    if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
+        top_defect_row = pareto.iloc[0]
+        top_defect_name = top_defect_row[defect_col]
+        top_defect_qty = int(top_defect_row[qty_col])
+        total_all_defects = pareto[qty_col].sum()
+        top_defect_pct = round((top_defect_qty / total_all_defects) * 100, 1) if total_all_defects > 0 else 0
+        
+        st.markdown(
+            f"""
+            <div class="pareto-alert-box">
+                <div class="pareto-alert-title">🚨 HIGHEST PRIORITY ACTION ITEM (PARETO 80/20 FOCUS)</div>
+                <div class="pareto-alert-main">Target Defect: {html.escape(str(top_defect_name))} ({top_defect_qty} Units / {top_defect_pct}%)</div>
+                <div class="pareto-alert-desc">Is defect par foran corrective action leni chahiye kyunki yeh total defects ka sab se bara hissa ban raha hai.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         total = pareto[qty_col].sum()
         pareto["Cumulative %"] = pareto[qty_col].cumsum() / total * 100
