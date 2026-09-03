@@ -113,7 +113,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
-/* LIGHT THEME BANNER STYLING */
 .top-header-banner {
     max-width: 520px;
     margin: 25px auto 10px auto;
@@ -1054,7 +1053,7 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 
 
 # ============================================================
-# PROFESSIONAL CORPORATE FOOTER & BADGE REMOVER SCRIPT
+# PROFESSIONAL CORPORATE FOOTER (SAFE RENDER)
 # ============================================================
 components.html("""
 <style>
@@ -1102,7 +1101,7 @@ components.html("""
 }
 .footer-text {
     font-size: 10.5px;
-    line-align: 1.4;
+    line-height: 1.4;
     color: #9ca3af;
     margin-bottom: 4px;
 }
@@ -1179,30 +1178,4 @@ components.html("""
         <div>Powered by Google Gemini AI & Streamlit | QFL4 Portal</div>
     </div>
 </div>
-
-<script>
-const removeBadge = () => {
-    const doc = window.parent.document;
-    const selectors = [
-        '.viewerBadge_container__1QSob',
-        'div[class*="viewerBadge"]',
-        '.stAppDeployButton',
-        '[data-testid="stStatusWidget"]',
-        'div[data-testid="stToolbar"]',
-        'iframe[sandbox]'
-    ];
-    selectors.forEach(selector => {
-        doc.querySelectorAll(selector).forEach(el => el.remove());
-    });
-    doc.querySelectorAll('a').forEach(el => {
-        if (el.textContent.includes('Deploy') || el.textContent.includes('Streamlit')) {
-            if (el.closest('div')) {
-                el.closest('div').remove();
-            }
-        }
-    });
-};
-removeBadge();
-setInterval(removeBadge, 500);
-</script>
 """, height=350)
