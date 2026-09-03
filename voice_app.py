@@ -115,7 +115,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 
 .top-header-banner {
     max-width: 520px;
-    margin: 25px auto 10px auto;
+    margin: 20px auto 10px auto;
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
     border-radius: 14px;
@@ -125,7 +125,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 }
 .top-header-text {
     color: #1e293b;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 900;
     letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -197,14 +197,13 @@ def save_users(users_dict):
 
 
 # ============================================================
-# PROFESSIONAL LOGIN PAGE
+# PROFESSIONAL LOGIN PAGE (WITH LOGO & FQCM BANNER RESTORED)
 # ============================================================
 def login():
-    # Login page logo banner restored
-    col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
+    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
     with col_l2:
         if os.path.exists("Master Motor Logo.jpg"):
-            st.image("Master Motor Logo.jpg", use_column_width=True, tooltip="Master Motor")
+            st.image("Master Motor Logo.jpg", use_column_width=True, tooltip="Master Motor Logo")
 
     st.markdown(
         """
