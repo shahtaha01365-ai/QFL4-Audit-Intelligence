@@ -155,16 +155,16 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     gap: 18px;
 }
 .brand-hex {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, #1b2436, #111827);
-    border: 2.5px solid #ef4444;
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #1f2937, #111827);
+    border: 2px solid #ef4444;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
 }
 .brand-check {
     color: #22c55e;
@@ -288,7 +288,6 @@ def save_users(users_dict):
 # PROFESSIONAL LOGIN PAGE
 # ============================================================
 def login():
-    # Render the top custom banner cleanly
     st.markdown(
         """
         <div class="top-header-banner">
