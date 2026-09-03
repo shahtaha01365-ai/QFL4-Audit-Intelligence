@@ -200,6 +200,12 @@ def save_users(users_dict):
 # PROFESSIONAL LOGIN PAGE
 # ============================================================
 def login():
+    # Login page logo banner restored
+    col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
+    with col_l2:
+        if os.path.exists("Master Motor Logo.jpg"):
+            st.image("Master Motor Logo.jpg", use_column_width=True, tooltip="Master Motor")
+
     st.markdown(
         """
         <div class="top-header-banner">
@@ -492,7 +498,6 @@ except Exception as exc:
 # SIDEBAR
 # ============================================================
 with st.sidebar:
-    # --- 3 COMPANY LOGOS SIDE BY SIDE (Compatible st.image) ---
     logo_col1, logo_col2, logo_col3 = st.columns(3)
     with logo_col1:
         st.image("Master Motor Logo.jpg", tooltip="Master Motor")
