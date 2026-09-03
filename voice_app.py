@@ -138,15 +138,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     margin-top: 2px;
 }
 
-.login-container {
-    max-width: 520px;
-    margin: 10px auto 10px auto;
-    background: #ffffff;
-    padding: 25px 35px;
-    border-radius: 20px;
-    border: 1px solid #e1e7ed;
-    box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
-}
 .login-brand-box {
     background: linear-gradient(135deg, #182030, #0f172a);
     border: 1px solid #2a374c;
@@ -311,8 +302,6 @@ def login():
     col1, col2, col3 = st.columns([1, 2.2, 1])
     
     with col2:
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        
         st.markdown(
             """
             <div class="login-brand-box">
@@ -413,8 +402,6 @@ def login():
             if st.button("Login", use_container_width=True):
                 st.session_state.show_signup = False
                 st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown(
             """
