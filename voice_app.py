@@ -42,19 +42,27 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
+# GLOBAL STYLING & STREAMLIT BRANDING / DEPLOY BUTTON HIDE
 # ============================================================
 st.markdown(
     """
 <style>
+/* Hide Main Menu, Header, Footer, and Toolbar */
 #MainMenu, footer, header, [data-testid="stHeader"] {
     visibility: hidden !important;
     display: none !important;
 }
 
-[data-testid="stStatusWidget"], .stAppDeployButton {
+/* Hide Deploy Button, Status Widget, and Floating Badges */
+[data-testid="stStatusWidget"], 
+.stAppDeployButton, 
+div[data-testid="stToolbar"],
+.viewerBadge_container__1QSob,
+iframe[sandbox] {
     display: none !important;
     visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .stApp {
@@ -487,7 +495,6 @@ def page_title(title, description):
     )
 
 def make_ai_context(d):
-    # Include a complete aggregated summary of defect types and quantities across ALL rows
     summary_str = ""
     defect_c = find_col(d, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
     qty_c = find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
@@ -862,7 +869,6 @@ if category_col and qty_col:
 if page in ["🏠 Overview", "📈 Pareto Analysis"]:
     st.markdown('<div class="section-title">📈 Defect Pareto Analysis</div>', unsafe_allow_html=True)
     
-    # 1. Defect Type Pareto
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         total = pareto[qty_col].sum()
         pareto["Cumulative %"] = pareto[qty_col].cumsum() / total * 100
@@ -878,7 +884,6 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
     st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-    # 2. Defect Category Pareto
     if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
         total_cat = pareto_cat[qty_col].sum()
         pareto_cat["Cumulative %"] = pareto_cat[qty_col].cumsum() / total_cat * 100
@@ -1028,7 +1033,7 @@ components.html("""
 }
 .footer-text {
     font-size: 10.5px;
-    line-align: 1.4;
+    line-height: 1.4;
     color: #9ca3af;
     margin-bottom: 4px;
 }
@@ -1084,7 +1089,7 @@ components.html("""
             <ul class="footer-links">
                 <li><a href="#">QFL4 Inspection Protocol</a></li>
                 <li><a href="#">MFTBC Product Audit</a></li>
-                <li><a href("#">Defect Class (A, B, C, D)</a></li>
+                <li><a href="#">Defect Class (A, B, C, D)</a></li>
                 <li><a href="#">DPU Performance Benchmarks</a></li>
             </ul>
         </div>
