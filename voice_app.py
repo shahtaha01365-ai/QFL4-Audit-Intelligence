@@ -966,7 +966,10 @@ if category_col and qty_col:
 if page in ["🏠 Overview", "📈 Pareto Analysis"]:
     st.markdown('<div class="section-title">📈 Defect Pareto Analysis & Action Focus</div>', unsafe_allow_html=True)
     
-    # DYNAMIC HIGHLIGHT / ACTION FOCUS BANNER
+    # --- FIRST PARETO SECTION: DEFECT TYPE ---
+    st.subheader("📊 Pareto Analysis by Defect Type")
+    
+    # Action focus box for Defect Type
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         top_defect_row = pareto.iloc[0]
         top_defect_name = top_defect_row[defect_col]
@@ -977,7 +980,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
         st.markdown(
             f"""
             <div class="pareto-alert-box">
-                <div class="pareto-alert-title">🚨 HIGHEST PRIORITY ACTION ITEM (PARETO 80/20 FOCUS)</div>
+                <div class="pareto-alert-title">🚨 HIGHEST PRIORITY ACTION ITEM (DEFECT TYPE 80/20 FOCUS)</div>
                 <div class="pareto-alert-main">Target Defect: {html.escape(str(top_defect_name))} ({top_defect_qty} Units / {top_defect_pct}%)</div>
                 <div class="pareto-alert-desc">Is defect par foran corrective action leni chahiye kyunki yeh total defects ka sab se bara hissa ban raha hai.</div>
             </div>
@@ -985,8 +988,6 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
             unsafe_allow_html=True,
         )
 
-    # --- FIRST PARETO SECTION: DEFECT TYPE ---
-    st.subheader("📊 Pareto Analysis by Defect Type")
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         total = pareto[qty_col].sum()
         pareto["Cumulative %"] = pareto[qty_col].cumsum() / total * 100
@@ -1002,15 +1003,33 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 
     st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-    # --- SECOND PARETO SECTION: DEFECT CATEGORY (DEDICATED SECTION) ---
+    # --- SECOND PARETO SECTION: DEFECT CATEGORY ---
     st.subheader("📈 Dedicated Pareto Analysis by Defect Category")
     st.markdown("Identifies the vital categories driving the majority of defect occurrences.")
     
+    # Action focus box for Defect Category
+    if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
+        top_cat_row = pareto_cat.iloc[0]
+        top_cat_name = top_cat_row[category_col]
+        top_cat_qty = int(top_cat_row[qty_col])
+        total_all_cats = pareto_cat[qty_col].sum()
+        top_cat_pct = round((top_cat_qty / total_all_cats) * 100, 1) if total_all_cats > 0 else 0
+        
+        st.markdown(
+            f"""
+            <div class="pareto-alert-box">
+                <div class="pareto-alert-title">🚨 HIGHEST PRIORITY ACTION ITEM (DEFECT CATEGORY 80/20 FOCUS)</div>
+                <div class="pareto-alert-main">Target Category: {html.escape(str(top_cat_name))} ({top_cat_qty} Units / {top_cat_pct}%)</div>
+                <div class="pareto-alert-desc">Is category par foran focus karein kyunki yeh maximum defect category share rakhti hai.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
         total_cat = pareto_cat[qty_col].sum()
         pareto_cat["Cumulative %"] = pareto_cat[qty_col].cumsum() / total_cat * 100
         
-        # Display Data Table and Chart side-by-side or stacked cleanly
         p_col1, p_col2 = st.columns([1, 1])
         with p_col1:
             st.markdown("##### Category Pareto Data Table")
