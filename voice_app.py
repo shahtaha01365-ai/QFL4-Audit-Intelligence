@@ -42,7 +42,7 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# GLOBAL STYLING
+# GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
 # ============================================================
 st.markdown(
     """
@@ -52,8 +52,9 @@ st.markdown(
     display: none !important;
 }
 
-[data-testid="stStatusWidget"] {
+[data-testid="stStatusWidget"], .stAppDeployButton {
     display: none !important;
+    visibility: hidden !important;
 }
 
 .stApp {
