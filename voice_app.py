@@ -114,7 +114,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 
 .login-container {
     max-width: 520px;
-    margin: 10px auto;
+    margin: 20px auto 10px auto;
     background: #ffffff;
     padding: 25px 35px;
     border-radius: 20px;
