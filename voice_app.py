@@ -113,7 +113,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
-/* LIGHT THEME BANNER STYLING */
 .top-header-banner {
     max-width: 520px;
     margin: 25px auto 10px auto;
@@ -137,94 +136,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     font-weight: 800;
     letter-spacing: 2px;
     margin-top: 3px;
-}
-
-.login-brand-box {
-    background: linear-gradient(135deg, #182030, #0f172a);
-    border: 1px solid #2a374c;
-    border-radius: 16px;
-    padding: 22px 26px;
-    margin-bottom: 18px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-.brand-left {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-}
-.brand-hex {
-    width: 56px;
-    height: 56px;
-    background: linear-gradient(135deg, #1f2937, #111827);
-    border: 2px solid #ef4444;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
-}
-.brand-check {
-    color: #22c55e;
-    font-size: 24px;
-    font-weight: 900;
-}
-.brand-texts {
-    display: flex;
-    flex-direction: column;
-}
-.brand-top-sub {
-    color: #ef4444;
-    font-size: 10px;
-    font-weight: 900;
-    letter-spacing: 1.8px;
-    margin-bottom: 3px;
-}
-.brand-main-title {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 3px;
-}
-.brand-qfl {
-    color: #ffffff;
-    font-size: 26px;
-    font-weight: 900;
-    letter-spacing: 0.5px;
-}
-.brand-ai {
-    color: #ef4444;
-    font-size: 26px;
-    font-weight: 900;
-}
-.brand-desc {
-    color: #94a3b8;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.9px;
-}
-.brand-fqcm-box {
-    border: 1.5px solid #475569;
-    border-radius: 10px;
-    padding: 8px 14px;
-    text-align: center;
-    background: rgba(255, 255, 255, 0.04);
-}
-.brand-fqcm-text {
-    color: #ef4444;
-    font-size: 16px;
-    font-weight: 900;
-    letter-spacing: 1.2px;
-}
-.brand-fqcm-active {
-    color: #22c55e;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-    margin-top: 2px;
 }
 
 .login-title {
@@ -302,31 +213,6 @@ def login():
     col1, col2, col3 = st.columns([1, 2.2, 1])
     
     with col2:
-        st.markdown(
-            """
-            <div class="login-brand-box">
-                <div class="brand-left">
-                    <div class="brand-hex">
-                        <span class="brand-check">✓</span>
-                    </div>
-                    <div class="brand-texts">
-                        <div class="brand-top-sub">MASTER MOTORS • FUSO</div>
-                        <div class="brand-main-title">
-                            <span class="brand-qfl">QFL4</span>
-                            <span class="brand-ai">AI</span>
-                        </div>
-                        <div class="brand-desc">AUTOMOTIVE QUALITY & AUDIT INTELLIGENCE</div>
-                    </div>
-                </div>
-                <div class="brand-fqcm-box">
-                    <div class="brand-fqcm-text">FQCM</div>
-                    <div class="brand-fqcm-active">ACTIVE</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        
         users = load_users()
 
         if not st.session_state.show_signup:
@@ -606,6 +492,17 @@ except Exception as exc:
 # SIDEBAR
 # ============================================================
 with st.sidebar:
+    # --- 3 COMPANY LOGOS SIDE BY SIDE ---
+    logo_col1, logo_col2, logo_col3 = st.columns(3)
+    with logo_col1:
+        st.image("Master Motor Logo.jpg", use_container_width=True, tooltip="Master Motor")
+    with logo_col2:
+        st.image("images.png", use_container_width=True, tooltip="FUSO")
+    with logo_col3:
+        st.image("Foton Logo.png", use_container_width=True, tooltip="Foton")
+
+    st.markdown("---")
+
     st.markdown(
         """
         <div class="nav-brand">
@@ -1026,7 +923,7 @@ components.html("""
 }
 .footer-text {
     font-size: 10.5px;
-    line-align: 1.4;
+    line-height: 1.4;
     color: #9ca3af;
     margin-bottom: 4px;
 }
@@ -1061,7 +958,7 @@ components.html("""
 <div class="footer-container">
     <div class="footer-grid">
         <div class="footer-col-brand">
-            <div class="footer-brand-title">MASTER MOTORS • FUSO QFL4</div>
+            <div class="footer-brand-title">MASTER MOTORS • FUSO • FOTON</div>
             <div class="footer-text">Final Quality Control Management & Assembly Plant Intelligence.</div>
             <div class="footer-text" style="margin-top: 6px;"><b>Plant Location:</b> Port Qasim Authority, Karachi</div>
             <div class="footer-text"><b>Dept:</b> Quality Assurance, Health, Safety & Environment</div>
@@ -1071,7 +968,7 @@ components.html("""
             <div class="footer-heading">COMMERCIAL VEHICLES</div>
             <ul class="footer-links">
                 <li><a href="#">FUSO Canter Light Duty</a></li>
-                <li><a href="#">FUSO Heavy Trucks</a></li>
+                <li><a href="#">FOTON Heavy & Light Trucks</a></li>
                 <li><a href="#">Master Bus Series</a></li>
                 <li><a href="#">Specialized Chassis</a></li>
             </ul>
