@@ -42,6 +42,20 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
+# SAFE IMAGE HELPER (PREVENTS CRASHES IF FILES ARE MISSING)
+# ============================================================
+def safe_image(path, **kwargs):
+    if os.path.exists(path):
+        try:
+            st.image(path, **kwargs)
+        except Exception:
+            pass
+    else:
+        # Fallback container if image file is not found in repository
+        pass
+
+
+# ============================================================
 # GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
 # ============================================================
 st.markdown(
@@ -202,8 +216,7 @@ def save_users(users_dict):
 def login():
     col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
     with col_l2:
-        if os.path.exists("Master Motor Logo.jpg"):
-            st.image("Master Motor Logo.jpg", use_column_width=True, tooltip="Master Motor Logo")
+        safe_image("Master Motor Logo.jpg", use_column_width=True, tooltip="Master Motor Logo")
 
     st.markdown(
         """
@@ -499,11 +512,11 @@ except Exception as exc:
 with st.sidebar:
     logo_col1, logo_col2, logo_col3 = st.columns(3)
     with logo_col1:
-        st.image("Master Motor Logo.jpg", tooltip="Master Motor")
+        safe_image("Master Motor Logo.jpg", tooltip="Master Motor")
     with logo_col2:
-        st.image("images.png", tooltip="FUSO")
+        safe_image("images.png", tooltip="FUSO")
     with logo_col3:
-        st.image("Foton Logo.png", tooltip="Foton")
+        safe_image("Foton Logo.png", tooltip="Foton")
 
     st.markdown("---")
 
