@@ -113,7 +113,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
-/* Top Header Banner Style */
 .top-header-banner {
     max-width: 520px;
     margin: 25px auto 10px auto;
@@ -693,7 +692,7 @@ else:
     titles = {
         "🎙️ AI Assistant": ("AI Voice Assistant", "Ask audit questions in English, Urdu, or Roman Urdu via voice or text."),
         "⚠️ Total Defects": ("Total Defects", "Defect performance and class distribution."),
-        "📈 Pareto Analysis": ("Pareto Analysis", "Identify the highest-impact defect types."),
+        "📈 Pareto Analysis": ("Pareto Analysis", "Identify the highest-impact defect types and defect categories."),
         "🚗 Vehicle Audit": ("Vehicle Audit", "Vehicle and chassis-level audit information."),
         "🧩 Class & Zone": ("Class & Zone Analysis", "Compare quality classes and audit zones."),
         "📋 Audit Data": ("Audit Data", "Connected Excel records used by the analytics engine."),
@@ -822,12 +821,13 @@ if page in ["🏠 Overview", "⚠️ Total Defects", "🧩 Class & Zone"]:
 
 
 # ============================================================
-# PARETO ANALYSIS
+# PARETO ANALYSIS (DEFECT TYPE & DEFECT CATEGORY)
 # ============================================================
 defect_col = find_col(filtered, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+category_col = find_col(filtered, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
 qty_col = find_col(filtered, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
-pareto = None
 
+pareto = None
 if defect_col and qty_col:
     pareto = filtered[[defect_col, qty_col]].copy()
     pareto[defect_col] = pareto[defect_col].astype(str).str.strip()
@@ -835,20 +835,46 @@ if defect_col and qty_col:
     pareto = pareto[~pareto[defect_col].isin(["", "nan", "None", "NaN"])]
     pareto = pareto.groupby(defect_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
 
+pareto_cat = None
+if category_col and qty_col:
+    pareto_cat = filtered[[category_col, qty_col]].copy()
+    pareto_cat[category_col] = pareto_cat[category_col].astype(str).str.strip()
+    pareto_cat[qty_col] = pd.to_numeric(pareto_cat[qty_col], errors="coerce").fillna(0)
+    pareto_cat = pareto_cat[~pareto_cat[category_col].isin(["", "nan", "None", "NaN"])]
+    pareto_cat = pareto_cat.groupby(category_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
+
 if page in ["🏠 Overview", "📈 Pareto Analysis"]:
     st.markdown('<div class="section-title">📈 Defect Pareto Analysis</div>', unsafe_allow_html=True)
+    
+    # 1. Defect Type Pareto
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         total = pareto[qty_col].sum()
         pareto["Cumulative %"] = pareto[qty_col].cumsum() / total * 100
         fig_pareto = go.Figure()
-        fig_pareto.add_trace(go.Bar(x=pareto[defect_col], y=pareto[qty_col], name="Defect Quantity", text=pareto[qty_col], textposition="outside"))
-        fig_pareto.add_trace(go.Scatter(x=pareto[defect_col], y=pareto["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2"))
+        fig_pareto.add_trace(go.Bar(x=pareto[defect_col], y=pareto[qty_col], name="Defect Quantity", text=pareto[qty_col], textposition="outside", marker_color="#2563eb"))
+        fig_pareto.add_trace(go.Scatter(x=pareto[defect_col], y=pareto["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2", line=dict(color="#dc2626", width=2.5)))
         if len(pareto) >= 2:
-            fig_pareto.add_trace(go.Scatter(x=[pareto[defect_col].iloc[0], pareto[defect_col].iloc[-1]], y=[80, 80], name="80% Target", mode="lines", line=dict(dash="dash"), yaxis="y2"))
-        fig_pareto.update_layout(title="Defect Quantity Pareto", height=520, xaxis=dict(tickangle=-45), yaxis=dict(title="Quantity"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0, 100], ticksuffix="%"), margin=dict(l=40, r=70, t=65, b=140))
+            fig_pareto.add_trace(go.Scatter(x=[pareto[defect_col].iloc[0], pareto[defect_col].iloc[-1]], y=[80, 80], name="80% Target", mode="lines", line=dict(dash="dash", color="#16a34a"), yaxis="y2"))
+        fig_pareto.update_layout(title="Pareto Analysis by Defect Type", height=500, xaxis=dict(tickangle=-45), yaxis=dict(title="Quantity"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0, 100], ticksuffix="%"), margin=dict(l=40, r=70, t=65, b=140))
         st.plotly_chart(fig_pareto, use_container_width=True)
     else:
-        st.info("No Pareto data available for the current filters.")
+        st.info("No Defect Type Pareto data available for current filters.")
+
+    st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+
+    # 2. Defect Category Pareto (New Addition)
+    if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
+        total_cat = pareto_cat[qty_col].sum()
+        pareto_cat["Cumulative %"] = pareto_cat[qty_col].cumsum() / total_cat * 100
+        fig_pareto_cat = go.Figure()
+        fig_pareto_cat.add_trace(go.Bar(x=pareto_cat[category_col], y=pareto_cat[qty_col], name="Category Quantity", text=pareto_cat[qty_col], textposition="outside", marker_color="#0ea5e9"))
+        fig_pareto_cat.add_trace(go.Scatter(x=pareto_cat[category_col], y=pareto_cat["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2", line=dict(color="#ea580c", width=2.5)))
+        if len(pareto_cat) >= 2:
+            fig_pareto_cat.add_trace(go.Scatter(x=[pareto_cat[category_col].iloc[0], pareto_cat[category_col].iloc[-1]], y=[80, 80], name="80% Target", mode="lines", line=dict(dash="dash", color="#16a34a"), yaxis="y2"))
+        fig_pareto_cat.update_layout(title="Pareto Analysis by Defect Category", height=500, xaxis=dict(tickangle=-45), yaxis=dict(title="Quantity"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0, 100], ticksuffix="%"), margin=dict(l=40, r=70, t=65, b=100))
+        st.plotly_chart(fig_pareto_cat, use_container_width=True)
+    else:
+        st.info("No Defect Category column found or no data available for category Pareto.")
 
 
 # ============================================================
