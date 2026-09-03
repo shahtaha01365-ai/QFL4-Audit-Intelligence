@@ -492,14 +492,14 @@ except Exception as exc:
 # SIDEBAR
 # ============================================================
 with st.sidebar:
-    # --- 3 COMPANY LOGOS SIDE BY SIDE ---
+    # --- 3 COMPANY LOGOS SIDE BY SIDE (Compatible st.image) ---
     logo_col1, logo_col2, logo_col3 = st.columns(3)
     with logo_col1:
-        st.image("Master Motor Logo.jpg", use_container_width=True, tooltip="Master Motor")
+        st.image("Master Motor Logo.jpg", tooltip="Master Motor")
     with logo_col2:
-        st.image("images.png", use_container_width=True, tooltip="FUSO")
+        st.image("images.png", tooltip="FUSO")
     with logo_col3:
-        st.image("Foton Logo.png", use_container_width=True, tooltip="Foton")
+        st.image("Foton Logo.png", tooltip="Foton")
 
     st.markdown("---")
 
