@@ -112,9 +112,35 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
 .answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
+/* Top Header Banner Style */
+.top-header-banner {
+    max-width: 520px;
+    margin: 15px auto 5px auto;
+    background: linear-gradient(135deg, #182030, #0f172a);
+    border: 1.5px solid #ff1a40;
+    border-radius: 14px;
+    padding: 12px 20px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(255, 26, 64, 0.15);
+}
+.top-header-text {
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.top-header-sub {
+    color: #ff1a40;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-top: 2px;
+}
+
 .login-container {
     max-width: 520px;
-    margin: 20px auto 10px auto;
+    margin: 10px auto 10px auto;
     background: #ffffff;
     padding: 25px 35px;
     border-radius: 20px;
@@ -271,6 +297,17 @@ def save_users(users_dict):
 # PROFESSIONAL LOGIN PAGE
 # ============================================================
 def login():
+    # Render the top custom banner replacing the blank box
+    st.markdown(
+        """
+        <div class="top-header-banner">
+            <div class="top-header-text">PREPARED BY TEAM FQCM</div>
+            <div class="top-header-sub">FINAL QUALITY CONTROL MANAGEMENT</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     col1, col2, col3 = st.columns([1, 2.2, 1])
     
     with col2:
