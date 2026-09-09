@@ -955,13 +955,37 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) { 
 .pareto-alert-main { color: #f2f3f4 !important; }
 .pareto-alert-desc { color: #b0b6bc !important; }
 
-/* Sidebar reopen control */
-[data-testid="stSidebarCollapseButton"] button {
-  background: #2a2e33 !important;
-  color: #dfe2e5 !important;
-  border: 1px solid #444a51 !important;
+/* Sidebar collapse / reopen controls — keep native Streamlit buttons visible */
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapseButton"] button,
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapsedControl"] button,
+button[data-testid="stBaseButton-headerNoPadding"] {
+  visibility: visible !important;
+  opacity: 1 !important;
 }
-[data-testid="stSidebarCollapseButton"] button:hover {
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapsedControl"] {
+  display: flex !important;
+  z-index: 999999 !important;
+}
+[data-testid="stSidebarCollapseButton"] button,
+[data-testid="stSidebarCollapsedControl"] button,
+button[data-testid="stBaseButton-headerNoPadding"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  background: #2a2e33 !important;
+  color: #f1f3f5 !important;
+  border: 1px solid #555b63 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25) !important;
+}
+[data-testid="stSidebarCollapseButton"] button:hover,
+[data-testid="stSidebarCollapsedControl"] button:hover,
+button[data-testid="stBaseButton-headerNoPadding"]:hover {
   border-color: var(--ui-red) !important;
   color: #fff !important;
 }
