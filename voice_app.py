@@ -766,6 +766,209 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) { 
 [data-testid="stHeader"] { background:rgba(24,26,30,.86) !important; }
 /* Hide default Streamlit decorations but retain app content */
 [data-testid="stDecoration"]{display:none!important;}
+
+/* ============================================================
+   REFINED GRAPHITE EXECUTIVE THEME — FINAL OVERRIDES
+   Clean charcoal surfaces, restrained red accent, no blue cast.
+   ============================================================ */
+:root {
+  --ui-bg: #202327;
+  --ui-sidebar: #191c20;
+  --ui-card: #2a2e33;
+  --ui-card-2: #30353b;
+  --ui-border: #3d434a;
+  --ui-text: #f2f3f4;
+  --ui-muted: #a3a9b0;
+  --ui-red: #d92332;
+  --ui-red-soft: #3a2428;
+}
+
+.stApp {
+  background: #202327 !important;
+  color: var(--ui-text) !important;
+}
+
+.block-container {
+  max-width: 1480px !important;
+  padding-top: 1.35rem !important;
+  padding-bottom: 3.5rem !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+  background: var(--ui-sidebar) !important;
+  border-right: 1px solid #30353b !important;
+  box-shadow: 8px 0 24px rgba(0,0,0,.16) !important;
+}
+[data-testid="stSidebar"] * { color: #d9dde1; }
+.nav-brand {
+  background: #24282d !important;
+  border: 1px solid #353a41 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.nav-brand-top { color: #e44753 !important; }
+.nav-brand-title { color: #f4f5f6 !important; }
+.nav-caption, .sidebar-note { color: #8e969f !important; }
+.nav-section { color: #727a83 !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] > label {
+  border-radius: 7px !important;
+  margin: 2px 0 !important;
+  color: #b9bec4 !important;
+  transition: .15s ease !important;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+  background: #282c31 !important;
+  color: #f3f4f5 !important;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) {
+  background: #302326 !important;
+  color: #ff6570 !important;
+  border-left: 3px solid var(--ui-red) !important;
+}
+[data-testid="stSidebar"] .stButton > button {
+  background: #272b30 !important;
+  border: 1px solid #3c4249 !important;
+  color: #e5e7e9 !important;
+}
+
+/* Header / typography */
+.page-title, .main-title, .section-title { color: #f0f1f2 !important; }
+.page-desc, .main-subtitle { color: #9da4ab !important; }
+.section-title { margin-top: 26px !important; }
+
+/* KPI cards */
+.kpi, .kpi-dpu {
+  background: #2a2e33 !important;
+  border: 1px solid #3c4249 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.13) !important;
+}
+.kpi-label { color: #9da4ab !important; }
+.kpi-value { color: #f3f4f5 !important; }
+.kpi-dpu { border-top: 2px solid var(--ui-red) !important; }
+.kpi-dpu .kpi-label { color: #b8a0a3 !important; }
+.kpi-dpu .kpi-value { color: #ff6570 !important; }
+
+/* Generic application cards */
+.vision-card, .leader-photo-wrap, .answer-card, .voice-card,
+[data-testid="stExpander"], [data-testid="stDataFrame"] {
+  background: #2a2e33 !important;
+  border: 1px solid #3c4249 !important;
+  box-shadow: 0 7px 20px rgba(0,0,0,.12) !important;
+}
+.vision-card { border-radius: 10px !important; }
+.vision-card:before { background: var(--ui-red) !important; }
+.vision-text, .answer-text, .voice-subtitle { color: #b1b7bd !important; }
+.vision-heading, .leader-name, .kpi-value { color: #f1f2f3 !important; }
+.vision-layout-note {
+  background: #292d32 !important;
+  border: 1px solid #3c4249 !important;
+  border-left: 4px solid var(--ui-red) !important;
+  color: #c5c9ce !important;
+  box-shadow: none !important;
+}
+.leader-caption { border-top: 1px solid #3b4148 !important; }
+.leader-role { color: #ed4c58 !important; }
+
+/* Inputs / selectors */
+.stTextInput input, .stTextArea textarea, .stNumberInput input,
+[data-baseweb="select"] > div {
+  background: #25292e !important;
+  color: #f0f1f2 !important;
+  border-color: #424850 !important;
+}
+.stTextInput input::placeholder, .stTextArea textarea::placeholder { color: #747c85 !important; }
+[data-baseweb="popover"], [data-baseweb="menu"] { background: #292d32 !important; }
+[data-baseweb="option"] { color: #e5e7e9 !important; }
+[data-baseweb="option"] [aria-selected="true"] { background: #373c43 !important; }
+
+/* Buttons */
+.stButton > button {
+  background: #2c3035 !important;
+  color: #eef0f2 !important;
+  border: 1px solid #454b52 !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+.stButton > button:hover {
+  background: #34393f !important;
+  border-color: #c92a38 !important;
+  color: #fff !important;
+}
+.stButton > button[kind="primary"] {
+  background: var(--ui-red) !important;
+  border-color: var(--ui-red) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 14px rgba(217,35,50,.18) !important;
+}
+.stButton > button[kind="primary"]:hover { background: #bf1f2d !important; }
+
+/* Login — clean executive panel */
+.top-header-banner {
+  max-width: 720px !important;
+  margin: 28px auto 22px auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.top-header-text {
+  color: #f4f5f6 !important;
+  font-size: 24px !important;
+  font-weight: 950 !important;
+  letter-spacing: 2.8px !important;
+  line-height: 1.2 !important;
+}
+.top-header-sub {
+  color: #e44753 !important;
+  font-size: 17px !important;
+  font-weight: 850 !important;
+  letter-spacing: 1.8px !important;
+  margin-top: 8px !important;
+}
+.login-brand-box {
+  background: #292d32 !important;
+  border: 1px solid #41474e !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.20) !important;
+}
+.login-title { color: #f3f4f5 !important; }
+.login-subtitle, .brand-desc { color: #9da4ab !important; }
+.brand-fqcm-box { background: #24282d !important; border-color: #41474e !important; }
+.brand-ai, .brand-top-sub, .brand-fqcm-text { color: #e44753 !important; }
+.brand-qfl { color: #f5f6f7 !important; }
+
+/* AI / answer / Pareto */
+.voice-card {
+  background: #292d32 !important;
+  border-left: 4px solid var(--ui-red) !important;
+}
+.answer-card { border-left: 4px solid var(--ui-red) !important; }
+.pareto-alert-box {
+  background: #30272a !important;
+  border: 1px solid #51383d !important;
+  border-left: 4px solid var(--ui-red) !important;
+  box-shadow: none !important;
+}
+.pareto-alert-title { color: #ed4c58 !important; }
+.pareto-alert-main { color: #f2f3f4 !important; }
+.pareto-alert-desc { color: #b0b6bc !important; }
+
+/* Sidebar reopen control */
+[data-testid="stSidebarCollapseButton"] button {
+  background: #2a2e33 !important;
+  color: #dfe2e5 !important;
+  border: 1px solid #444a51 !important;
+}
+[data-testid="stSidebarCollapseButton"] button:hover {
+  border-color: var(--ui-red) !important;
+  color: #fff !important;
+}
+
+/* Plotly container + dataframe */
+[data-testid="stDataFrame"] { background: #25292e !important; }
+.js-plotly-plot .plotly, .plot-container { border-radius: 8px !important; }
 </style>
     """,
     unsafe_allow_html=True,
