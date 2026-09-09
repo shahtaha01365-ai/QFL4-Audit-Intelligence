@@ -47,14 +47,27 @@ if "show_signup" not in st.session_state:
 st.markdown(
     """
 <style>
-#MainMenu, footer, header, [data-testid="stHeader"] {
+#MainMenu, footer, [data-testid="stStatusWidget"], .stAppDeployButton {
     visibility: hidden !important;
     display: none !important;
 }
 
-[data-testid="stStatusWidget"], .stAppDeployButton {
-    display: none !important;
-    visibility: hidden !important;
+/* Header ko poora hide nahi karna - warna sidebar ka open/close arrow bhi ghayab ho jata hai */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    box-shadow: none !important;
+    height: 3rem !important;
+}
+
+/* Sidebar collapse/expand ka arrow hamesha visible aur clickable rahe */
+[data-testid="collapsedControl"] {
+    visibility: visible !important;
+    display: flex !important;
+    z-index: 999999 !important;
+}
+button[kind="header"] {
+    visibility: visible !important;
+    display: flex !important;
 }
 
 .stApp {
