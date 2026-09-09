@@ -287,7 +287,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     background: #ffffff;
     border: 1px solid #dce3ea;
     border-radius: 16px;
-    padding: 28px;
+    padding: 28px 30px;
     margin: 14px 0;
     box-shadow: 0 6px 20px rgba(15,23,42,.05);
 }
@@ -295,12 +295,64 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     color: #243447;
     font-size: 22px;
     font-weight: 900;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: .3px;
 }
+.vision-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 900;
+    flex: 0 0 30px;
+}
+.vision-icon-red { background: #fff1f2; color: #dc2626; border: 1px solid #fecdd3; }
+.vision-icon-blue { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.vision-icon-gold { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .vision-text {
-    color: #64748b;
+    color: #53657a;
     font-size: 15px;
-    line-height: 1.7;
+    line-height: 1.8;
+    font-weight: 500;
+}
+.leader-photo-wrap {
+    background: #ffffff;
+    border: 1px solid #dce3ea;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 6px 20px rgba(15,23,42,.05);
+}
+.leader-photo-wrap img {
+    border-radius: 10px;
+}
+.leader-caption {
+    text-align: center;
+    padding: 14px 6px 5px;
+}
+.leader-name {
+    color: #243447;
+    font-size: 18px;
+    font-weight: 900;
+}
+.leader-role {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 3px;
+    letter-spacing: .6px;
+}
+.approach-card {
+    margin-top: 16px;
+}
+.approach-text {
+    font-weight: 700;
+    color: #334e68;
 }
 
 </style>
@@ -670,8 +722,8 @@ with st.sidebar:
     st.markdown('<div class="nav-section">ANALYTICS</div>', unsafe_allow_html=True)
 
     nav_pages = [
+        "Vision & Mission",
         "🏠 Overview",
-        "🎯 Vision & Mission",
         "🎙️ AI Assistant",
         "⚠️ Total Defects",
         "📈 Pareto Analysis",
@@ -724,44 +776,68 @@ with st.sidebar:
 # ============================================================
 # VISION & MISSION
 # ============================================================
-if page == "🎯 Vision & Mission":
-    page_title("Vision & Mission", "Leadership vision for digital transformation and AI-driven quality intelligence.")
+if page == "Vision & Mission":
+    page_title(
+        "Vision & Mission",
+        "Leadership vision for digital transformation and AI-driven quality intelligence."
+    )
 
-    col_img, col_text = st.columns([1, 2])
+    col_img, col_text = st.columns([1, 2], gap="large")
 
     with col_img:
         photo_file = "ather_ali_darbari.png"
         if os.path.exists(photo_file):
+            st.markdown('<div class="leader-photo-wrap">', unsafe_allow_html=True)
             st.image(photo_file, use_container_width=True)
+            st.markdown(
+                """
+                <div class="leader-caption">
+                    <div class="leader-name">Mr. Ather Ali Darbari</div>
+                    <div class="leader-role">Senior General Manager</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.info("Ather Ali Darbari ki picture yahan show hogi. File ka naam: ather_ali_darbari.png")
+            st.info("Please place the leadership photo in the app folder as: ather_ali_darbari.png")
+            st.markdown(
+                """
+                <div class="leader-caption">
+                    <div class="leader-name">Mr. Ather Ali Darbari</div>
+                    <div class="leader-role">Senior General Manager</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     with col_text:
         st.markdown(
             """
             <div class="vision-card">
-                <div class="vision-heading">🎯 VISION</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-red">V</span>VISION</div>
                 <div class="vision-text">
-                    Technology ka use karke quality processes ko digitalize karna,
-                    aur Artificial Intelligence ke through quality data ko analyse
-                    karke smarter, faster aur data-driven decisions enable karna.
+                    Leverage technology to digitalize quality processes and use
+                    Artificial Intelligence to analyse quality data, enabling smarter,
+                    faster and data-driven decision-making across the organization.
                 </div>
             </div>
+
             <div class="vision-card">
-                <div class="vision-heading">🚀 MISSION</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-blue">M</span>MISSION</div>
                 <div class="vision-text">
-                    Manual aur disconnected quality activities ko digital solutions
-                    mein transform karna, data ko systematically capture aur analyse
-                    karna, aur AI ki madad se trends, problems aur improvement
-                    opportunities ko identify karke continuous quality improvement
-                    achieve karna.
+                    Transform manual and disconnected quality activities into integrated
+                    digital solutions that systematically capture and analyse data,
+                    using AI to identify trends, detect problems, prioritize improvement
+                    opportunities and drive continuous quality improvement.
                 </div>
             </div>
-            <div class="vision-card">
-                <div class="vision-heading">💡 DIGITAL QUALITY APPROACH</div>
-                <div class="vision-text">
-                    <b>Digitalize → Collect Data → Analyse with AI → Identify Trends →
-                    Take Action → Continuous Improvement</b>
+
+            <div class="vision-card approach-card">
+                <div class="vision-heading"><span class="vision-icon vision-icon-gold">→</span>DIGITAL QUALITY APPROACH</div>
+                <div class="vision-text approach-text">
+                    Digitalize &nbsp;→&nbsp; Collect Data &nbsp;→&nbsp; Analyse with AI
+                    &nbsp;→&nbsp; Identify Trends &nbsp;→&nbsp; Take Action &nbsp;→&nbsp; Continuous Improvement
                 </div>
             </div>
             """,
@@ -769,7 +845,6 @@ if page == "🎯 Vision & Mission":
         )
 
     st.stop()
-
 
 # ============================================================
 # ADMIN PAGE: MANAGE USERS
