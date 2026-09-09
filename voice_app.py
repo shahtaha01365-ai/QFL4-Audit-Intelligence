@@ -281,6 +281,28 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     border-color: #2563eb !important;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
 }
+
+/* VISION & MISSION */
+.vision-card {
+    background: #ffffff;
+    border: 1px solid #dce3ea;
+    border-radius: 16px;
+    padding: 28px;
+    margin: 14px 0;
+    box-shadow: 0 6px 20px rgba(15,23,42,.05);
+}
+.vision-heading {
+    color: #243447;
+    font-size: 22px;
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+.vision-text {
+    color: #64748b;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -649,6 +671,7 @@ with st.sidebar:
 
     nav_pages = [
         "🏠 Overview",
+        "🎯 Vision & Mission",
         "🎙️ AI Assistant",
         "⚠️ Total Defects",
         "📈 Pareto Analysis",
@@ -696,6 +719,56 @@ with st.sidebar:
         st.session_state.logged_in = False
         st.session_state.role = "user"
         st.rerun()
+
+
+# ============================================================
+# VISION & MISSION
+# ============================================================
+if page == "🎯 Vision & Mission":
+    page_title("Vision & Mission", "Leadership vision for digital transformation and AI-driven quality intelligence.")
+
+    col_img, col_text = st.columns([1, 2])
+
+    with col_img:
+        photo_file = "ather_ali_darbari.png"
+        if os.path.exists(photo_file):
+            st.image(photo_file, use_container_width=True)
+        else:
+            st.info("Ather Ali Darbari ki picture yahan show hogi. File ka naam: ather_ali_darbari.png")
+
+    with col_text:
+        st.markdown(
+            """
+            <div class="vision-card">
+                <div class="vision-heading">🎯 VISION</div>
+                <div class="vision-text">
+                    Technology ka use karke quality processes ko digitalize karna,
+                    aur Artificial Intelligence ke through quality data ko analyse
+                    karke smarter, faster aur data-driven decisions enable karna.
+                </div>
+            </div>
+            <div class="vision-card">
+                <div class="vision-heading">🚀 MISSION</div>
+                <div class="vision-text">
+                    Manual aur disconnected quality activities ko digital solutions
+                    mein transform karna, data ko systematically capture aur analyse
+                    karna, aur AI ki madad se trends, problems aur improvement
+                    opportunities ko identify karke continuous quality improvement
+                    achieve karna.
+                </div>
+            </div>
+            <div class="vision-card">
+                <div class="vision-heading">💡 DIGITAL QUALITY APPROACH</div>
+                <div class="vision-text">
+                    <b>Digitalize → Collect Data → Analyse with AI → Identify Trends →
+                    Take Action → Continuous Improvement</b>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.stop()
 
 
 # ============================================================
