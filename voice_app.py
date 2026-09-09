@@ -355,6 +355,195 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     color: #334e68;
 }
 
+
+/* ============================================================
+   ENTERPRISE CORPORATE THEME — VISUAL ONLY
+   Data / calculations / dashboard logic remain unchanged.
+   ============================================================ */
+:root {
+    --mm-navy: #12263f;
+    --mm-navy-2: #1b3554;
+    --mm-red: #d71920;
+    --mm-red-dark: #b51218;
+    --mm-bg: #f4f6f8;
+    --mm-card: #ffffff;
+    --mm-border: #dfe5eb;
+    --mm-text: #172b3f;
+    --mm-muted: #68788a;
+}
+
+.stApp { background: var(--mm-bg) !important; }
+.block-container {
+    padding-top: 1.25rem !important;
+    padding-bottom: 3rem !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 1px solid #d9e0e7 !important;
+    box-shadow: 4px 0 18px rgba(18,38,63,.035);
+}
+.nav-brand {
+    padding: 12px 10px 20px !important;
+    border-bottom: 1px solid #e8edf2 !important;
+    margin-bottom: 12px !important;
+}
+.nav-brand-top {
+    color: var(--mm-red) !important;
+    font-size: 9px !important;
+    letter-spacing: 2px !important;
+}
+.nav-brand-title {
+    color: var(--mm-navy) !important;
+    font-size: 20px !important;
+    letter-spacing: -.2px;
+}
+.nav-caption { color: #8290a0 !important; }
+.nav-section {
+    color: #8795a5 !important;
+    font-size: 9px !important;
+    letter-spacing: 1.5px !important;
+    padding: 15px 8px 7px !important;
+}
+
+/* Radio navigation: restrained corporate appearance */
+[data-testid="stSidebar"] div[role="radiogroup"] > label {
+    border-radius: 7px !important;
+    margin: 2px 0 !important;
+    padding: 7px 8px !important;
+    color: #445568 !important;
+    font-size: 12px !important;
+    transition: all .15s ease;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+    background: #f4f7fa !important;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) {
+    background: #fdf0f1 !important;
+    color: var(--mm-red) !important;
+    font-weight: 800 !important;
+    border-left: 3px solid var(--mm-red) !important;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child {
+    transform: scale(.78);
+}
+
+/* Page typography */
+.page-title {
+    color: var(--mm-navy) !important;
+    font-size: 29px !important;
+    letter-spacing: -.5px;
+}
+.page-desc, .main-subtitle { color: var(--mm-muted) !important; }
+.section-title {
+    color: var(--mm-navy) !important;
+    font-size: 18px !important;
+    letter-spacing: -.15px;
+}
+
+/* Cards */
+.kpi, .vision-card, .leader-photo-wrap, .answer-card, .voice-card {
+    border: 1px solid var(--mm-border) !important;
+    box-shadow: 0 3px 12px rgba(18,38,63,.045) !important;
+}
+.kpi { border-radius: 10px !important; }
+.kpi-label { color: #718094 !important; }
+.kpi-value { color: var(--mm-navy) !important; }
+
+/* Vision & Mission page */
+.vision-layout-note {
+    background: #ffffff;
+    border: 1px solid var(--mm-border);
+    border-left: 3px solid var(--mm-red);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: #526476;
+    font-size: 12px;
+    line-height: 1.55;
+    margin-bottom: 18px;
+}
+.vision-card {
+    background: #ffffff !important;
+    border-radius: 11px !important;
+    padding: 24px 27px !important;
+    margin: 0 0 14px !important;
+    box-shadow: 0 3px 12px rgba(18,38,63,.045) !important;
+}
+.vision-heading {
+    color: var(--mm-navy) !important;
+    font-size: 18px !important;
+    letter-spacing: .6px !important;
+    margin-bottom: 10px !important;
+}
+.vision-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 7px !important;
+    font-size: 12px !important;
+}
+.vision-icon-red { background: #fff4f4 !important; color: var(--mm-red) !important; border: 1px solid #f2c9cc !important; }
+.vision-icon-blue { background: #f1f5f9 !important; color: var(--mm-navy) !important; border: 1px solid #d8e0e8 !important; }
+.vision-icon-gold { background: #f7f8fa !important; color: #536578 !important; border: 1px solid #dfe5eb !important; }
+.vision-text {
+    color: #536579 !important;
+    font-size: 14px !important;
+    line-height: 1.75 !important;
+    font-weight: 450 !important;
+}
+.leader-photo-wrap {
+    background: #ffffff !important;
+    border-radius: 11px !important;
+    padding: 10px !important;
+}
+.leader-photo-wrap img { border-radius: 7px !important; }
+.leader-caption { padding: 13px 6px 7px !important; }
+.leader-name { color: var(--mm-navy) !important; font-size: 17px !important; }
+.leader-role { color: var(--mm-red) !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .5px; }
+
+/* Upload / buttons */
+.stButton > button {
+    border-radius: 7px !important;
+    border: 1px solid #cfd8e2 !important;
+    font-weight: 700 !important;
+}
+.stButton > button[kind="primary"] {
+    background: var(--mm-navy) !important;
+    border-color: var(--mm-navy) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background: var(--mm-navy-2) !important;
+    border-color: var(--mm-navy-2) !important;
+}
+
+/* Inputs */
+.stTextInput input, .stSelectbox [data-baseweb="select"], .stMultiSelect [data-baseweb="select"] {
+    border-radius: 7px !important;
+}
+.stTextInput input:focus {
+    border-color: var(--mm-navy) !important;
+    box-shadow: 0 0 0 2px rgba(18,38,63,.10) !important;
+}
+
+/* Tables */
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--mm-border) !important;
+    border-radius: 9px !important;
+}
+
+/* Remove overly decorative top login banner/card styling */
+.login-brand-box {
+    background: #ffffff !important;
+    border: 1px solid var(--mm-border) !important;
+    box-shadow: 0 5px 18px rgba(18,38,63,.06) !important;
+}
+.brand-hex { background: #f5f7f9 !important; border-color: var(--mm-red) !important; box-shadow: none !important; }
+.brand-qfl { color: var(--mm-navy) !important; }
+.brand-ai, .brand-top-sub, .brand-fqcm-text { color: var(--mm-red) !important; }
+.brand-desc { color: #718094 !important; }
+.brand-fqcm-box { border-color: #d7dfe7 !important; background: #f8fafb !important; }
+.login-title { color: var(--mm-navy) !important; }
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -779,7 +968,12 @@ with st.sidebar:
 if page == "Vision & Mission":
     page_title(
         "Vision & Mission",
-        "Leadership vision for digital transformation and AI-driven quality intelligence."
+        "Leadership direction for digital transformation, intelligent quality management and continuous improvement."
+    )
+
+    st.markdown(
+        """<div class="vision-layout-note"><b>OUR DIRECTION</b><br>Building a connected, data-driven quality environment where digital systems and Artificial Intelligence support faster analysis, stronger decisions and continuous improvement.</div>""",
+        unsafe_allow_html=True,
     )
 
     col_img, col_text = st.columns([1, 2], gap="large")
@@ -815,7 +1009,7 @@ if page == "Vision & Mission":
         st.markdown(
             """
             <div class="vision-card">
-                <div class="vision-heading"><span class="vision-icon vision-icon-red">V</span>VISION</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-red">01</span>VISION</div>
                 <div class="vision-text">
                     Leverage technology to digitalize quality processes and use
                     Artificial Intelligence to analyse quality data, enabling smarter,
@@ -824,7 +1018,7 @@ if page == "Vision & Mission":
             </div>
 
             <div class="vision-card">
-                <div class="vision-heading"><span class="vision-icon vision-icon-blue">M</span>MISSION</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-blue">02</span>MISSION</div>
                 <div class="vision-text">
                     Transform manual and disconnected quality activities into integrated
                     digital solutions that systematically capture and analyse data,
@@ -834,7 +1028,7 @@ if page == "Vision & Mission":
             </div>
 
             <div class="vision-card approach-card">
-                <div class="vision-heading"><span class="vision-icon vision-icon-gold">→</span>DIGITAL QUALITY APPROACH</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-gold">03</span>DIGITAL QUALITY APPROACH</div>
                 <div class="vision-text approach-text">
                     Digitalize &nbsp;→&nbsp; Collect Data &nbsp;→&nbsp; Analyse with AI
                     &nbsp;→&nbsp; Identify Trends &nbsp;→&nbsp; Take Action &nbsp;→&nbsp; Continuous Improvement
