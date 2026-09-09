@@ -2,8 +2,6 @@ import os
 import re
 import html
 import json
-import hashlib
-import secrets
 from datetime import datetime
 import pandas as pd
 import streamlit as st
@@ -19,8 +17,6 @@ from streamlit_mic_recorder import mic_recorder
 # ============================================================
 # PAGE / APP CONFIG
 # ============================================================
-px.defaults.template = "plotly_white"
-
 st.set_page_config(
     page_title="QFL4 AI Audit Intelligence",
     page_icon="🎙️",
@@ -46,21 +42,15 @@ if "show_signup" not in st.session_state:
 
 
 # ============================================================
-# GLOBAL STYLING & PROFESSIONAL LIGHT CORPORATE THEME
+# GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
 # ============================================================
 st.markdown(
     """
 <style>
-#MainMenu, footer {
+#MainMenu, footer, header, [data-testid="stHeader"] {
     visibility: hidden !important;
     display: none !important;
 }
-[data-testid="stHeader"] {
-    visibility: visible !important;
-    display: block !important;
-    background: transparent !important;
-}
-[data-testid="stToolbar"] { visibility: hidden !important; }
 
 [data-testid="stStatusWidget"], .stAppDeployButton {
     display: none !important;
@@ -68,24 +58,18 @@ st.markdown(
 }
 
 .stApp {
-    background: #f4f6f9 !important;
-    color: #1e293b !important;
+    background: #eef1f5;
 }
 
 .block-container {
-    padding-top: 1.2rem !important;
+    padding-top: 0rem !important;
     padding-bottom: 3.5rem !important;
     max-width: 1500px;
 }
 
 [data-testid="stSidebar"] {
-    background: #ffffff !important;
-    border-right: 1px solid #e2e8f0 !important;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.03);
-}
-
-[data-testid="stSidebar"] * {
-    color: #334155 !important;
+    background: #fff !important;
+    border-right: 1px solid #dce3ea;
 }
 
 .nav-brand {
@@ -93,36 +77,36 @@ st.markdown(
     border-bottom: 1px solid #edf1f5;
     margin-bottom: 10px;
 }
-.nav-brand-top { color: #dc2626 !important; font-size: 10px; font-weight: 900; letter-spacing: 1.8px; }
-.nav-brand-title { color: #0f172a !important; font-size: 21px; font-weight: 900; margin-top: 5px; }
-.nav-caption { color: #64748b !important; font-size: 11px; margin-top: 3px; }
-.nav-section { color: #94a3b8 !important; font-size: 10px; font-weight: 900; letter-spacing: 1.2px; padding: 13px 8px 6px; }
-.sidebar-note { color: #64748b !important; font-size: 11px; padding: 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+.nav-brand-top { color: #1d5fa7; font-size: 10px; font-weight: 900; letter-spacing: 1.8px; }
+.nav-brand-title { color: #243447; font-size: 21px; font-weight: 900; margin-top: 5px; }
+.nav-caption { color: #94a3b8; font-size: 11px; margin-top: 3px; }
+.nav-section { color: #94a3b8; font-size: 10px; font-weight: 900; letter-spacing: 1.2px; padding: 13px 8px 6px; }
+.sidebar-note { color: #94a3b8; font-size: 11px; padding: 8px; }
 
-.page-title { font-size: 30px; font-weight: 900; color: #0f172a; margin-bottom: 2px; }
-.page-desc { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+.page-title { font-size: 30px; font-weight: 900; color: #243447; margin-bottom: 2px; }
+.page-desc { font-size: 13px; color: #718096; margin-bottom: 20px; }
 
-.main-title { font-size: 36px; font-weight: 900; color: #0f172a; margin-top: 10px; }
+.main-title { font-size: 36px; font-weight: 900; color: #243447; margin-top: 10px; }
 .main-subtitle { color: #64748b; font-size: 15px; margin-top: 6px; }
-.online-badge { display: inline-block; margin-top: 12px; padding: 6px 14px; border-radius: 20px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-size: 10px; font-weight: 900; }
-.section-title { font-size: 20px; font-weight: 900; color: #0f172a; margin: 24px 0 12px; }
+.online-badge { display: inline-block; margin-top: 12px; padding: 6px 14px; border-radius: 20px; background: #edf8f1; color: #15803d; border: 1px solid #ccebd7; font-size: 10px; font-weight: 900; }
+.section-title { font-size: 20px; font-weight: 900; color: #243447; margin: 24px 0 12px; }
 
-.kpi { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; min-height: 105px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-.kpi-label { font-size: 11px; color: #64748b; font-weight: 800; }
-.kpi-value { font-size: 30px; color: #0f172a; font-weight: 900; margin-top: 7px; }
+.kpi { background: #fff; border: 1px solid #e0e6ec; border-radius: 14px; padding: 18px; min-height: 105px; box-shadow: 0 5px 16px rgba(15,23,42,.04); }
+.kpi-label { font-size: 11px; color: #718096; font-weight: 800; }
+.kpi-value { font-size: 30px; color: #243447; font-weight: 900; margin-top: 7px; }
 
-.kpi-dpu { background: linear-gradient(135deg, #fff1f2, #ffe4e6); border: 1px solid #fecdd3; border-radius: 12px; padding: 18px; min-height: 105px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.05); }
-.kpi-dpu .kpi-label { font-size: 11px; color: #9f1239; font-weight: 800; letter-spacing: 0.5px; }
-.kpi-dpu .kpi-value { font-size: 34px; color: #e11d48; font-weight: 900; margin-top: 7px; }
+.kpi-dpu { background: linear-gradient(135deg, #fff5f5, #fed7d7); border: 1px solid #feb2b2; border-radius: 14px; padding: 18px; min-height: 105px; box-shadow: 0 6px 18px rgba(220, 38, 38, 0.08); }
+.kpi-dpu .kpi-label { font-size: 11px; color: #9b2c2c; font-weight: 800; letter-spacing: 0.5px; }
+.kpi-dpu .kpi-value { font-size: 34px; color: #dc2626; font-weight: 900; margin-top: 7px; }
 
 /* ACTION ALERT BOX FOR PARETO */
 .pareto-alert-box {
     background: linear-gradient(135deg, #fff1f2, #ffe4e6);
     border: 2px solid #f43f5e;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 18px 22px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 15px rgba(244, 63, 94, 0.08);
+    box-shadow: 0 6px 20px rgba(244, 63, 94, 0.12);
 }
 .pareto-alert-title {
     color: #be123c;
@@ -144,29 +128,29 @@ st.markdown(
     font-weight: 600;
 }
 
-.voice-card { padding: 25px; border-radius: 14px; background: #ffffff; border: 1px solid #e2e8f0; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-.voice-title { font-size: 22px; font-weight: 900; color: #0f172a; }
+.voice-card { padding: 25px; border-radius: 16px; background: linear-gradient(135deg,#f8fbff,#e7f0fb); border: 1px solid #d8e4f2; margin: 20px 0; box-shadow: 0 7px 22px rgba(37,99,235,.06); }
+.voice-title { font-size: 25px; font-weight: 900; color: #243447; }
 .voice-subtitle { font-size: 13px; color: #64748b; margin-top: 5px; }
 
 div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) {
-    background: #ffffff; border: 2px solid #dc2626 !important; border-radius: 12px; padding: 4px 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.08); align-items: center;
+    background: #ffffff; border: 2px solid #ff4b4b !important; border-radius: 14px; padding: 4px 12px; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.1); align-items: center;
 }
 div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) [data-baseweb="input"] { background: transparent !important; border: none !important; box-shadow: none !important; }
 div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fieldset { border: none !important; }
 
-.answer-card { background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #dc2626; border-radius: 10px; padding: 17px 20px; margin-top: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-.answer-label { font-size: 10px; color: #dc2626; font-weight: 900; letter-spacing: 1.4px; }
-.answer-text { font-size: 17px; color: #0f172a; font-weight: 600; margin-top: 6px; line-height: 1.5; }
+.answer-card { background: #fff; border: 1px solid #dce5ef; border-left: 4px solid #ff1a40; border-radius: 12px; padding: 17px 20px; margin-top: 12px; }
+.answer-label { font-size: 10px; color: #ff1a40; font-weight: 900; letter-spacing: 1.4px; }
+.answer-text { font-size: 18px; color: #243447; font-weight: 650; margin-top: 6px; line-height: 1.5; }
 
 .top-header-banner {
     max-width: 520px;
     margin: 25px auto 10px auto;
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 14px 20px;
     text-align: center;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
 }
 .top-header-text {
     color: #1e293b;
@@ -184,12 +168,12 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 }
 
 .login-brand-box {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    background: linear-gradient(135deg, #182030, #0f172a);
+    border: 1px solid #2a374c;
+    border-radius: 16px;
     padding: 22px 26px;
     margin-bottom: 18px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -202,16 +186,17 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .brand-hex {
     width: 56px;
     height: 56px;
-    background: #f8fafc;
-    border: 2px solid #dc2626;
-    border-radius: 12px;
+    background: linear-gradient(135deg, #1f2937, #111827);
+    border: 2px solid #ef4444;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
 }
 .brand-check {
-    color: #16a34a;
+    color: #22c55e;
     font-size: 24px;
     font-weight: 900;
 }
@@ -220,7 +205,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     flex-direction: column;
 }
 .brand-top-sub {
-    color: #dc2626;
+    color: #ef4444;
     font-size: 10px;
     font-weight: 900;
     letter-spacing: 1.8px;
@@ -233,37 +218,37 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     margin-bottom: 3px;
 }
 .brand-qfl {
-    color: #0f172a;
+    color: #ffffff;
     font-size: 26px;
     font-weight: 900;
     letter-spacing: 0.5px;
 }
 .brand-ai {
-    color: #dc2626;
+    color: #ef4444;
     font-size: 26px;
     font-weight: 900;
 }
 .brand-desc {
-    color: #64748b;
+    color: #94a3b8;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.9px;
 }
 .brand-fqcm-box {
-    border: 1.5px solid #e2e8f0;
+    border: 1.5px solid #475569;
     border-radius: 10px;
     padding: 8px 14px;
     text-align: center;
-    background: #f8fafc;
+    background: rgba(255, 255, 255, 0.04);
 }
 .brand-fqcm-text {
-    color: #dc2626;
+    color: #ef4444;
     font-size: 16px;
     font-weight: 900;
     letter-spacing: 1.2px;
 }
 .brand-fqcm-active {
-    color: #16a34a;
+    color: #22c55e;
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 1.2px;
@@ -271,7 +256,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 }
 
 .login-title {
-    color: #0f172a;
+    color: #243447;
     font-size: 26px;
     font-weight: 900;
     margin-bottom: 6px;
@@ -283,24 +268,38 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     margin-bottom: 22px;
     text-align: center;
 }
+.stTextInput input {
+    background-color: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    padding: 12px 14px !important;
+    color: #243447 !important;
+    transition: all 0.3s;
+}
+.stTextInput input:focus {
+    background-color: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
 
 /* VISION & MISSION */
 .vision-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border: 1px solid #dce3ea;
+    border-radius: 16px;
     padding: 28px 30px;
     margin: 14px 0;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    box-shadow: 0 6px 20px rgba(15,23,42,.05);
 }
 .vision-heading {
-    color: #0f172a;
-    font-size: 20px;
+    color: #243447;
+    font-size: 22px;
     font-weight: 900;
     margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 10px;
+    letter-spacing: .3px;
 }
 .vision-icon {
     width: 30px;
@@ -317,17 +316,17 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .vision-icon-blue { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
 .vision-icon-gold { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .vision-text {
-    color: #475569;
-    font-size: 14.5px;
-    line-height: 1.7;
+    color: #53657a;
+    font-size: 15px;
+    line-height: 1.8;
     font-weight: 500;
 }
 .leader-photo-wrap {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border: 1px solid #dce3ea;
+    border-radius: 16px;
     padding: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    box-shadow: 0 6px 20px rgba(15,23,42,.05);
 }
 .leader-photo-wrap img {
     border-radius: 10px;
@@ -337,7 +336,7 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     padding: 14px 6px 5px;
 }
 .leader-name {
-    color: #0f172a;
+    color: #243447;
     font-size: 18px;
     font-weight: 900;
 }
@@ -348,72 +347,14 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     margin-top: 3px;
     letter-spacing: .6px;
 }
-.vision-layout-note {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-left: 4px solid #dc2626;
-    border-radius: 10px;
-    padding: 14px 18px;
-    color: #475569;
-    font-size: 13px;
-    line-height: 1.6;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+.approach-card {
+    margin-top: 16px;
+}
+.approach-text {
+    font-weight: 700;
+    color: #334e68;
 }
 
-/* Sidebar Radio Menu Styling for Light Theme */
-[data-testid="stSidebar"] div[role="radiogroup"] > label {
-    border-radius: 8px !important;
-    margin: 3px 0 !important;
-    padding: 8px 10px !important;
-    color: #334155 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    transition: all 0.2s ease;
-}
-[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-    background: #f1f5f9 !important;
-    color: #0f172a !important;
-}
-[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) {
-    background: #fee2e2 !important;
-    color: #991b1b !important;
-    font-weight: 800 !important;
-    border-left: 3px solid #dc2626 !important;
-}
-
-/* Form inputs & buttons clean light styling */
-.stTextInput input, .stTextArea textarea, .stNumberInput input, [data-baseweb="select"] > div {
-    background-color: #ffffff !important;
-    color: #0f172a !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
-}
-.stButton > button {
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    border: 1px solid #cbd5e1 !important;
-    background: #ffffff !important;
-    color: #1e293b !important;
-}
-.stButton > button:hover {
-    border-color: #dc2626 !important;
-    color: #dc2626 !important;
-}
-.stButton > button[kind="primary"] {
-    background: #dc2626 !important;
-    border-color: #dc2626 !important;
-    color: #ffffff !important;
-}
-.stButton > button[kind="primary"]:hover {
-    background: #b91c1c !important;
-    color: #ffffff !important;
-}
-[data-testid="stDataFrame"] {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 10px !important;
-}
 </style>
 """,
     unsafe_allow_html=True,
@@ -444,34 +385,6 @@ def load_users():
 def save_users(users_dict):
     with open(USERS_FILE, "w") as f:
         json.dump(users_dict, f, indent=4)
-
-def _session_digest(token):
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-def create_persistent_session(email, users):
-    token = secrets.token_urlsafe(32)
-    users[email]["session_token_hash"] = _session_digest(token)
-    save_users(users)
-    st.query_params["session"] = token
-
-def restore_persistent_session(users):
-    token = st.query_params.get("session", "")
-    if not token:
-        return False
-    digest = _session_digest(token)
-    for email, user in users.items():
-        if user.get("status") == "approved" and user.get("session_token_hash") == digest:
-            st.session_state.logged_in = True
-            st.session_state.user_email = email
-            st.session_state.role = user.get("role", "user")
-            return True
-    return False
-
-def clear_persistent_session(users, email=None):
-    if email and email in users:
-        users[email].pop("session_token_hash", None)
-        save_users(users)
-    st.query_params.clear()
 
 
 # ============================================================
@@ -517,8 +430,6 @@ def login():
         )
         
         users = load_users()
-        if restore_persistent_session(users):
-            st.rerun()
 
         if not st.session_state.show_signup:
             st.markdown(
@@ -542,7 +453,6 @@ def login():
                                 st.session_state.logged_in = True
                                 st.session_state.user_email = e_clean
                                 st.session_state.role = users[e_clean].get("role", "user")
-                                create_persistent_session(e_clean, users)
                                 st.rerun()
                             else:
                                 st.error("Incorrect password.")
@@ -551,7 +461,7 @@ def login():
                     else:
                         st.error("Email not found. Please create an account.")
 
-            st.markdown("<p style='text-align:center; font-size:13px; color:#64748b; margin-top:15px; margin-bottom:5px;'>Don't have an account?</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:15px; margin-bottom:5px;'>Don't have an account?</p>", unsafe_allow_html=True)
             if st.button("Create Account", use_container_width=True):
                 st.session_state.show_signup = True
                 st.rerun()
@@ -590,7 +500,7 @@ def login():
                         save_users(users)
                         st.success("Account created! Status: PENDING ⏳. Waiting for admin approval.")
 
-            st.markdown("<p style='text-align:center; font-size:13px; color:#64748b; margin-top:15px; margin-bottom:5px;'>Already have an account?</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; font-size:13px; color:#718096; margin-top:15px; margin-bottom:5px;'>Already have an account?</p>", unsafe_allow_html=True)
             if st.button("Login", use_container_width=True):
                 st.session_state.show_signup = False
                 st.rerun()
@@ -772,9 +682,6 @@ def speak(text):
 # AUTHENTICATION CHECK
 # ============================================================
 if not st.session_state.logged_in:
-    users = load_users()
-    if restore_persistent_session(users):
-        st.rerun()
     login()
     st.stop()
 
@@ -846,7 +753,7 @@ with st.sidebar:
 
     st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
     ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
-    ai_status = '<span style="color:#16a34a; font-weight:800;">● GEMINI AI READY</span>' if ai_ready else '<span style="color:#d97706; font-weight:800;">● GEMINI KEY REQUIRED</span>'
+    ai_status = '<span class="status-ok">● GEMINI AI READY</span>' if ai_ready else '<span class="status-warn">● GEMINI KEY REQUIRED</span>'
 
     st.markdown(
         f"""
@@ -861,11 +768,8 @@ with st.sidebar:
     )
 
     if st.button("Logout", use_container_width=True):
-        users = load_users()
-        clear_persistent_session(users, st.session_state.get("user_email"))
         st.session_state.logged_in = False
         st.session_state.role = "user"
-        st.session_state.user_email = ""
         st.rerun()
 
 
@@ -875,12 +779,7 @@ with st.sidebar:
 if page == "Vision & Mission":
     page_title(
         "Vision & Mission",
-        "Executive vision for digital transformation, AI-enabled quality intelligence and continuous improvement."
-    )
-
-    st.markdown(
-        """<div class="vision-layout-note"><b>OUR DIRECTION</b><br>Building a connected, data-driven quality environment where digital systems and Artificial Intelligence transform quality information into actionable intelligence for faster, smarter and more sustainable decisions.</div>""",
-        unsafe_allow_html=True,
+        "Leadership vision for digital transformation and AI-driven quality intelligence."
     )
 
     col_img, col_text = st.columns([1, 2], gap="large")
@@ -916,7 +815,7 @@ if page == "Vision & Mission":
         st.markdown(
             """
             <div class="vision-card">
-                <div class="vision-heading"><span class="vision-icon vision-icon-red">01</span>VISION</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-red">V</span>VISION</div>
                 <div class="vision-text">
                     Leverage technology to digitalize quality processes and use
                     Artificial Intelligence to analyse quality data, enabling smarter,
@@ -925,7 +824,7 @@ if page == "Vision & Mission":
             </div>
 
             <div class="vision-card">
-                <div class="vision-heading"><span class="vision-icon vision-icon-blue">02</span>MISSION</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-blue">M</span>MISSION</div>
                 <div class="vision-text">
                     Transform manual and disconnected quality activities into integrated
                     digital solutions that systematically capture and analyse data,
@@ -935,7 +834,7 @@ if page == "Vision & Mission":
             </div>
 
             <div class="vision-card approach-card">
-                <div class="vision-heading"><span class="vision-icon vision-icon-gold">03</span>DIGITAL QUALITY APPROACH</div>
+                <div class="vision-heading"><span class="vision-icon vision-icon-gold">→</span>DIGITAL QUALITY APPROACH</div>
                 <div class="vision-text approach-text">
                     Digitalize &nbsp;→&nbsp; Collect Data &nbsp;→&nbsp; Analyse with AI
                     &nbsp;→&nbsp; Identify Trends &nbsp;→&nbsp; Take Action &nbsp;→&nbsp; Continuous Improvement
@@ -946,7 +845,6 @@ if page == "Vision & Mission":
         )
 
     st.stop()
-
 
 # ============================================================
 # ADMIN PAGE: MANAGE USERS
@@ -968,7 +866,7 @@ if page == "👥 Manage Users":
             c1, c2, c3 = st.columns([3, 1, 1])
             with c1:
                 user_name = users[email].get("name", "N/A")
-                st.markdown(f"**{user_name}** <br><span style='color:#64748b; font-size:12px;'>{email}</span>", unsafe_allow_html=True)
+                st.markdown(f"**{user_name}** <br><span style='color:#718096; font-size:12px;'>{email}</span>", unsafe_allow_html=True)
             with c2:
                 if st.button("Approve", key=f"app_{email}", type="primary"):
                     users[email]["status"] = "approved"
@@ -1219,6 +1117,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
     # --- FIRST PARETO SECTION: DEFECT TYPE ---
     st.subheader("📊 Pareto Analysis by Defect Type")
     
+    # Action focus box for Defect Type
     if pareto is not None and not pareto.empty and pareto[qty_col].sum() > 0:
         top_defect_row = pareto.iloc[0]
         top_defect_name = top_defect_row[defect_col]
@@ -1256,6 +1155,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
     st.subheader("📈 Dedicated Pareto Analysis by Defect Category")
     st.markdown("Identifies the vital categories driving the majority of defect occurrences.")
     
+    # Action focus box for Defect Category
     if pareto_cat is not None and not pareto_cat.empty and pareto_cat[qty_col].sum() > 0:
         top_cat_row = pareto_cat.iloc[0]
         top_cat_name = top_cat_row[category_col]
@@ -1278,6 +1178,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
         total_cat = pareto_cat[qty_col].sum()
         pareto_cat["Cumulative %"] = pareto_cat[qty_col].cumsum() / total_cat * 100
         
+        # Table removed completely as requested, showing chart full width nicely
         fig_pareto_cat = go.Figure()
         fig_pareto_cat.add_trace(go.Bar(x=pareto_cat[category_col], y=pareto_cat[qty_col], name="Category Quantity", text=pareto_cat[qty_col], textposition="outside", marker_color="#0ea5e9"))
         fig_pareto_cat.add_trace(go.Scatter(x=pareto_cat[category_col], y=pareto_cat["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2", line=dict(color="#ea580c", width=2.5)))
@@ -1376,46 +1277,129 @@ if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
 
 
 # ============================================================
-# PROFESSIONAL CORPORATE FOOTER
+# PROFESSIONAL CORPORATE FOOTER (SAFE RENDER)
 # ============================================================
 components.html("""
 <style>
 .footer-container {
-    background-color: #ffffff;
-    color: #475569;
-    padding: 20px 24px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    margin-top: 20px;
+    background-color: #1a1a1a;
+    color: #a3a3a3;
+    padding: 24px 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-top: 10px;
+    margin-bottom: 10px;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    border-top: 3px solid #dc2626;
+    border-top: 4px solid #ff1a40;
 }
 .footer-grid {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 20px;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 16px;
+}
+.footer-col {
+    flex: 1;
+    min-width: 150px;
+}
+.footer-col-brand {
+    flex: 1.2;
+    min-width: 220px;
 }
 .footer-brand-title {
-    color: #0f172a;
-    font-size: 13px;
+    color: #ffffff;
+    font-size: 14px;
     font-weight: 900;
     letter-spacing: 1px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+}
+.footer-heading {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
 }
 .footer-text {
-    font-size: 11px;
+    font-size: 10.5px;
     line-height: 1.4;
-    color: #64748b;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.footer-links li {
+    margin-bottom: 4px;
+}
+.footer-links a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 10.5px;
+}
+.footer-links a:hover {
+    color: #ffffff;
+}
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    font-size: 9.5px;
+    color: #6b7280;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 </style>
+
 <div class="footer-container">
     <div class="footer-grid">
-        <div>
+        <div class="footer-col-brand">
             <div class="footer-brand-title">MASTER MOTORS • FUSO QFL4</div>
             <div class="footer-text">Final Quality Control Management & Assembly Plant Intelligence.</div>
-            <div class="footer-text" style="margin-top: 4px;"><b>Plant Location:</b> Port Qasim Authority, Karachi | <b>Dept:</b> QA, HS&E</div>
+            <div class="footer-text" style="margin-top: 6px;"><b>Plant Location:</b> Port Qasim Authority, Karachi</div>
+            <div class="footer-text"><b>Dept:</b> Quality Assurance, Health, Safety & Environment</div>
+        </div>
+        
+        <div class="footer-col">
+            <div class="footer-heading">COMMERCIAL VEHICLES</div>
+            <ul class="footer-links">
+                <li><a href="#">FUSO Canter Light Duty</a></li>
+                <li><a href="#">FUSO Heavy Trucks</a></li>
+                <li><a href="#">Master Bus Series</a></li>
+                <li><a href="#">Specialized Chassis</a></li>
+            </ul>
+        </div>
+        
+        <div class="footer-col">
+            <div class="footer-heading">QUALITY STANDARDS</div>
+            <ul class="footer-links">
+                <li><a href="#">QFL4 Inspection Protocol</a></li>
+                <li><a href="#">MFTBC Product Audit</a></li>
+                <li><a href="#">Defect Class (A, B, C, D)</a></li>
+                <li><a href="#">DPU Performance Benchmarks</a></li>
+            </ul>
+        </div>
+        
+        <div class="footer-col">
+            <div class="footer-heading">SYSTEM &SUPPORT</div>
+            <ul class="footer-links">
+                <li><a href="#">Gemini AI Assistant</a></li>
+                <li><a href="#">Pareto Defect Analytics</a></li>
+                <li><a href="#">Audit Records Dashboard</a></li>
+                <li><a href="#">User Access Controls</a></li>
+            </ul>
         </div>
     </div>
+    
+    <div class="footer-bottom">
+        <div>© 2026 Master Motor Corporation Ltd. All Rights Reserved.</div>
+        <div>Powered by Google Gemini AI & Streamlit | QFL4 Portal</div>
+    </div>
 </div>
-""", height=110)
+""", height=350)
