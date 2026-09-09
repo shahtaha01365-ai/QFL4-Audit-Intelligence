@@ -2,6 +2,8 @@ import os
 import re
 import html
 import json
+import hashlib
+import secrets
 from datetime import datetime
 import pandas as pd
 import streamlit as st
@@ -17,6 +19,8 @@ from streamlit_mic_recorder import mic_recorder
 # ============================================================
 # PAGE / APP CONFIG
 # ============================================================
+px.defaults.template = "plotly_dark"
+
 st.set_page_config(
     page_title="QFL4 AI Audit Intelligence",
     page_icon="🎙️",
@@ -47,10 +51,16 @@ if "show_signup" not in st.session_state:
 st.markdown(
     """
 <style>
-#MainMenu, footer, header, [data-testid="stHeader"] {
+#MainMenu, footer {
     visibility: hidden !important;
     display: none !important;
 }
+[data-testid="stHeader"] {
+    visibility: visible !important;
+    display: block !important;
+    background: transparent !important;
+}
+[data-testid="stToolbar"] { visibility: hidden !important; }
 
 [data-testid="stStatusWidget"], .stAppDeployButton {
     display: none !important;
@@ -677,6 +687,83 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]){ba
 .brand-qfl{color:#fff!important;}.brand-ai,.brand-top-sub,.brand-fqcm-text{color:#F04455!important;}.brand-desc{color:#9FB2C4!important;}.brand-fqcm-box{border-color:rgba(255,255,255,.20)!important;background:rgba(255,255,255,.05)!important;}
 .login-title{color:var(--qfl-navy)!important;}
 
+/* ============================================================
+   EXECUTIVE DARK GRAPHITE THEME
+   ============================================================ */
+:root {
+    --qfl-bg: #1d1f23;
+    --qfl-surface: #25282d;
+    --qfl-surface-2: #2b2f35;
+    --qfl-border: #3a3f47;
+    --qfl-text: #eef1f4;
+    --qfl-muted: #9da5ae;
+    --qfl-red: #e31e2f;
+    --qfl-red-dark: #b91524;
+}
+.stApp { background: radial-gradient(circle at 85% 0%, #2b2e34 0%, #1d1f23 42%, #181a1e 100%) !important; color: var(--qfl-text) !important; }
+.block-container { max-width: 1540px !important; padding-top: 1.1rem !important; }
+[data-testid="stSidebar"] { background: #17191d !important; border-right: 1px solid #34383f !important; box-shadow: 8px 0 30px rgba(0,0,0,.22) !important; }
+[data-testid="stSidebar"] * { color: #d9dde2; }
+.nav-brand { background: linear-gradient(180deg,#23262b,#1b1d21) !important; border: 1px solid #34383f !important; border-radius: 12px !important; padding: 14px !important; }
+.nav-brand-top { color: #ff5665 !important; }
+.nav-brand-title { color: #f4f5f7 !important; }
+.nav-caption, .sidebar-note { color: #8f98a2 !important; }
+.nav-section { color: #727b85 !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] > label { color: #b9c0c8 !important; border-radius: 8px !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] > label:hover { background: #292c31 !important; color: #fff !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) { background: linear-gradient(90deg,rgba(227,30,47,.20),rgba(227,30,47,.05)) !important; color: #ff6572 !important; border-left: 3px solid var(--qfl-red) !important; }
+[data-testid="stSidebar"] .stButton > button { background: #292c31 !important; color: #e8ebee !important; border: 1px solid #41464e !important; }
+[data-testid="stSidebar"] .stButton > button:hover { border-color: #e31e2f !important; color: #fff !important; }
+.page-title, .main-title, .section-title { color: #f0f2f4 !important; }
+.page-desc, .main-subtitle { color: #9ca4ad !important; }
+.kpi, .vision-card, .leader-photo-wrap, .answer-card, .voice-card { background: linear-gradient(145deg,#292c31,#23262b) !important; border: 1px solid #3a3f47 !important; color: #edf0f3 !important; box-shadow: 0 12px 28px rgba(0,0,0,.18) !important; }
+.kpi-label, .vision-text, .answer-text, .voice-subtitle { color: #aeb5bd !important; }
+.kpi-value, .vision-heading, .leader-name { color: #f1f3f5 !important; }
+.vision-layout-note { background: linear-gradient(120deg,#292c31,#202226) !important; border: 1px solid #41464e !important; border-left: 4px solid var(--qfl-red) !important; color: #cbd1d7 !important; }
+.leader-photo-wrap { background: #22252a !important; }
+.leader-caption { border-top: 1px solid #3a3f47 !important; }
+.leader-role { color: #ff5665 !important; }
+.vision-card:before { background: linear-gradient(180deg,#e31e2f,#8e1521) !important; }
+.vision-icon-red { background:#351f23 !important; color:#ff6370 !important; border-color:#5b2c33 !important; }
+.vision-icon-blue, .vision-icon-gold { background:#2a2e34 !important; color:#c5ccd3 !important; border-color:#41464e !important; }
+.stTextInput input, .stTextArea textarea, .stNumberInput input { background:#24272c !important; color:#eef1f4 !important; border:1px solid #41464d !important; }
+.stTextInput input::placeholder, .stTextArea textarea::placeholder { color:#707984 !important; }
+[data-baseweb="select"] > div { background:#24272c !important; color:#eef1f4 !important; border-color:#41464d !important; }
+[data-baseweb="popover"] { background:#25282d !important; }
+[data-baseweb="menu"] { background:#25282d !important; }
+[data-baseweb="option"] { color:#e7eaed !important; }
+[data-baseweb="option"] [aria-selected="true"] { background:#34383f !important; }
+.stButton > button { background:#2b2f35 !important; color:#eef1f4 !important; border:1px solid #454a52 !important; }
+.stButton > button:hover { border-color:#e31e2f !important; color:#fff !important; }
+.stButton > button[kind="primary"] { background:linear-gradient(135deg,#d7192b,#a91220) !important; border-color:#e31e2f !important; color:#fff !important; box-shadow:0 8px 20px rgba(227,30,47,.18) !important; }
+[data-testid="stDataFrame"] { background:#24272c !important; border:1px solid #3a3f47 !important; box-shadow:0 12px 28px rgba(0,0,0,.16) !important; }
+.top-header-text { color:#f1f3f5 !important; }
+.top-header-sub { color:#ff5665 !important; }
+.login-brand-box { background:linear-gradient(145deg,#25282d,#17191d) !important; border:1px solid #3d424a !important; box-shadow:0 20px 50px rgba(0,0,0,.30) !important; }
+.login-title { color:#f1f3f5 !important; }
+.login-subtitle { color:#9ca4ad !important; }
+.brand-desc { color:#9ca4ad !important; }
+.brand-fqcm-box { background:#22252a !important; border-color:#444a52 !important; }
+div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) { background:#24272c !important; border-color:#e31e2f !important; }
+.answer-card { border-left-color:#e31e2f !important; }
+.voice-card { background:linear-gradient(135deg,#17191d,#292c31 68%,#451e25 150%) !important; border-color:#3a3f47 !important; }
+.pareto-alert-box { background:linear-gradient(120deg,#302126,#25282d) !important; border-color:#5b3036 !important; border-left-color:#e31e2f !important; }
+.pareto-alert-main { color:#f1f3f5 !important; }
+.pareto-alert-desc { color:#aeb5bd !important; }
+[data-testid="stExpander"] { background:#25282d !important; border-color:#3a3f47 !important; }
+[data-testid="stMetric"] { background:#25282d !important; }
+
+/* Login heading hierarchy */
+.top-header-text { font-size: 20px !important; font-weight: 950 !important; letter-spacing: 2.4px !important; }
+.top-header-sub { font-size: 16px !important; font-weight: 900 !important; letter-spacing: 1.4px !important; margin-top: 8px !important; }
+
+/* Keep the Streamlit sidebar collapse / reopen control visible */
+[data-testid="stSidebarCollapseButton"] { visibility: visible !important; display: flex !important; }
+[data-testid="stSidebarCollapseButton"] button { visibility: visible !important; color: #dfe3e7 !important; background:#292c31 !important; border:1px solid #444a52 !important; border-radius:7px !important; }
+[data-testid="stSidebarCollapseButton"] button:hover { color:#fff !important; border-color:#e31e2f !important; }
+
+/* Keep header visible only for navigation controls */
+[data-testid="stHeader"] { background:rgba(24,26,30,.86) !important; }
 /* Hide default Streamlit decorations but retain app content */
 [data-testid="stDecoration"]{display:none!important;}
 </style>
@@ -709,6 +796,34 @@ def load_users():
 def save_users(users_dict):
     with open(USERS_FILE, "w") as f:
         json.dump(users_dict, f, indent=4)
+
+def _session_digest(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+def create_persistent_session(email, users):
+    token = secrets.token_urlsafe(32)
+    users[email]["session_token_hash"] = _session_digest(token)
+    save_users(users)
+    st.query_params["session"] = token
+
+def restore_persistent_session(users):
+    token = st.query_params.get("session", "")
+    if not token:
+        return False
+    digest = _session_digest(token)
+    for email, user in users.items():
+        if user.get("status") == "approved" and user.get("session_token_hash") == digest:
+            st.session_state.logged_in = True
+            st.session_state.user_email = email
+            st.session_state.role = user.get("role", "user")
+            return True
+    return False
+
+def clear_persistent_session(users, email=None):
+    if email and email in users:
+        users[email].pop("session_token_hash", None)
+        save_users(users)
+    st.query_params.clear()
 
 
 # ============================================================
@@ -754,6 +869,8 @@ def login():
         )
         
         users = load_users()
+        if restore_persistent_session(users):
+            st.rerun()
 
         if not st.session_state.show_signup:
             st.markdown(
@@ -777,6 +894,7 @@ def login():
                                 st.session_state.logged_in = True
                                 st.session_state.user_email = e_clean
                                 st.session_state.role = users[e_clean].get("role", "user")
+                                create_persistent_session(e_clean, users)
                                 st.rerun()
                             else:
                                 st.error("Incorrect password.")
@@ -1006,6 +1124,9 @@ def speak(text):
 # AUTHENTICATION CHECK
 # ============================================================
 if not st.session_state.logged_in:
+    users = load_users()
+    if restore_persistent_session(users):
+        st.rerun()
     login()
     st.stop()
 
@@ -1092,8 +1213,11 @@ with st.sidebar:
     )
 
     if st.button("Logout", use_container_width=True):
+        users = load_users()
+        clear_persistent_session(users, st.session_state.get("user_email"))
         st.session_state.logged_in = False
         st.session_state.role = "user"
+        st.session_state.user_email = ""
         st.rerun()
 
 
