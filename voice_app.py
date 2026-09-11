@@ -1009,7 +1009,6 @@ else:
 st.markdown('<div class="section-title">🔎 Audit Filters</div>', unsafe_allow_html=True)
 
 date_col = find_col(df, ["Date"])
-vehicle_col = find_col(df, ["Vehicle", "Vehicle No", "Vehicle Name"])
 model_col = find_col(df, ["Model", "Model Name"])
 chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
 
@@ -1019,15 +1018,52 @@ defect_col = find_col(df, ["Defect Type", "Defect", "Defect Name", "Defect Descr
 category_col = find_col(df, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
 qty_col = find_col(df, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
 
+# Month / Year and exact Date filters replace the old Vehicle filter.
+# Both filters can be used together; when both are selected, the dashboard
+# shows the intersection of the selected month(s) and exact date(s).
 f1, f2, f3, f4 = st.columns(4)
 
 with f1:
-    dates = sorted(df[date_col].dropna().dt.date.unique().tolist()) if date_col else []
-    selected_dates = st.multiselect("📅 Date", dates)
+    if date_col:
+        month_periods = (
+            df[date_col]
+            .dropna()
+            .dt.to_period("M")
+            .drop_duplicates()
+            .sort_values(ascending=False)
+            .tolist()
+        )
+        month_year_options = [p.strftime("%B %Y") for p in month_periods]
+        selected_month_year = st.multiselect(
+            "📅 Month & Year",
+            month_year_options,
+            placeholder="Select month / year",
+        )
+    else:
+        month_periods = []
+        month_year_options = []
+        selected_month_year = []
 
 with f2:
-    vehicle_options = sorted(df[vehicle_col].dropna().astype(str).unique().tolist()) if vehicle_col else []
-    selected_vehicle = st.selectbox("🚗 Vehicle", ["All"] + vehicle_options)
+    if date_col:
+        exact_dates = (
+            df[date_col]
+            .dropna()
+            .dt.normalize()
+            .drop_duplicates()
+            .sort_values(ascending=False)
+            .tolist()
+        )
+        date_options = [d.strftime("%d %B %Y") for d in exact_dates]
+        selected_dates = st.multiselect(
+            "📆 Audit Date",
+            date_options,
+            placeholder="Select date(s)",
+        )
+    else:
+        exact_dates = []
+        date_options = []
+        selected_dates = []
 
 with f3:
     model_options = sorted(df[model_col].dropna().astype(str).unique().tolist()) if model_col else []
@@ -1038,10 +1074,26 @@ with f4:
     selected_chassis = st.selectbox("🔢 Chassis No.", ["All"] + chassis_options)
 
 filtered = df.copy()
+
+if selected_month_year and date_col:
+    selected_periods = {
+        pd.Period(value, freq="M")
+        for value in selected_month_year
+        for value in [pd.to_datetime(value, format="%B %Y").to_period("M")]
+    }
+    filtered = filtered[
+        filtered[date_col].dt.to_period("M").isin(selected_periods)
+    ]
+
 if selected_dates and date_col:
-    filtered = filtered[filtered[date_col].dt.date.isin(selected_dates)]
-if selected_vehicle != "All" and vehicle_col:
-    filtered = filtered[filtered[vehicle_col].astype(str) == selected_vehicle]
+    selected_date_values = {
+        pd.to_datetime(value, format="%d %B %Y").normalize()
+        for value in selected_dates
+    }
+    filtered = filtered[
+        filtered[date_col].dt.normalize().isin(selected_date_values)
+    ]
+
 if selected_model != "All" and model_col:
     filtered = filtered[filtered[model_col].astype(str) == selected_model]
 if selected_chassis != "All" and chassis_col:
