@@ -1013,6 +1013,12 @@ vehicle_col = find_col(df, ["Vehicle", "Vehicle No", "Vehicle Name"])
 model_col = find_col(df, ["Model", "Model Name"])
 chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
 
+# Defect fields are resolved here so the Overview dashboard and all
+# downstream analytics can use them before any page-specific rendering.
+defect_col = find_col(df, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+category_col = find_col(df, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
+qty_col = find_col(df, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+
 f1, f2, f3, f4 = st.columns(4)
 
 with f1:
@@ -1223,10 +1229,6 @@ if page in ["⚠️ Total Defects", "🧩 Class & Zone"]:
 # ============================================================
 # PARETO ANALYSIS (DEFECT TYPE & DEFECT CATEGORY)
 # ============================================================
-defect_col = find_col(filtered, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
-category_col = find_col(filtered, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
-qty_col = find_col(filtered, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
-
 pareto = None
 if defect_col and qty_col:
     pareto = filtered[[defect_col, qty_col]].copy()
