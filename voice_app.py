@@ -368,6 +368,26 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
     color: #334e68;
 }
 
+
+/* EXECUTIVE QUALITY DASHBOARD */
+.dashboard-title { font-size: 28px; font-weight: 950; color: #243447; margin: 4px 0 2px; }
+.dashboard-subtitle { color: #64748b; font-size: 12px; margin-bottom: 14px; }
+.dashboard-card { background:#fff; border:1px solid #d8dee7; border-radius:12px; padding:14px 16px; box-shadow:0 3px 12px rgba(15,23,42,.06); height:100%; }
+.dashboard-card-title { color:#334155; font-size:12px; font-weight:900; letter-spacing:.5px; text-transform:uppercase; margin-bottom:6px; }
+.dashboard-card-value { color:#1f2937; font-size:30px; line-height:1; font-weight:950; }
+.dashboard-card-value.red { color:#dc3b45; }
+.dashboard-card-value.orange { color:#d97706; }
+.dashboard-card-value.green { color:#15803d; }
+.dashboard-card-value.blue { color:#2563a8; }
+.mini-kpi { background:#fff; border:1px solid #d8dee7; border-radius:10px; padding:10px 12px; text-align:center; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+.mini-kpi-label { font-size:10px; color:#64748b; font-weight:850; text-transform:uppercase; }
+.mini-kpi-value { font-size:24px; color:#1f2937; font-weight:950; margin-top:3px; }
+.dashboard-section { font-size:17px; font-weight:950; color:#243447; margin:18px 0 9px; }
+.top-defect-table { width:100%; border-collapse:collapse; font-size:12px; }
+.top-defect-table th { text-align:left; background:#f1f5f9; color:#475569; padding:9px 10px; font-weight:900; }
+.top-defect-table td { border-top:1px solid #e5e7eb; padding:9px 10px; color:#334155; font-weight:650; }
+.rank-badge { display:inline-block; min-width:24px; padding:3px 6px; border-radius:6px; background:#eef2f7; text-align:center; font-weight:900; }
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -1023,11 +1043,146 @@ if selected_chassis != "All" and chassis_col:
 
 
 # ============================================================
-# KPI CARDS
+# EXECUTIVE OVERVIEW DASHBOARD
 # ============================================================
-if page in ["🏠 Overview", "⚠️ Total Defects"]:
+if page == "🏠 Overview":
+    st.markdown('<div class="dashboard-title">QFL4 QUALITY CONTROL DASHBOARD</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dashboard-subtitle">Vehicle audit performance, defect concentration and quality classification based on the active filters.</div>', unsafe_allow_html=True)
+
+    k1, k2, k3, k4 = st.columns(4, gap="small")
+    overview_kpis = [
+        (k1, "VEHICLES AUDITED", vehicle_count(filtered), "blue"),
+        (k2, "TOTAL DEFECTS", total_defects(filtered), "red"),
+        (k3, "A+B DEFECTS", ab_total(filtered), "orange"),
+        (k4, "DPU (DEFECTS / UNIT)", calculate_dpu(filtered), "red"),
+    ]
+    for col, label, value, cls in overview_kpis:
+        with col:
+            st.markdown(f'<div class="dashboard-card"><div class="dashboard-card-title">{label}</div><div class="dashboard-card-value {cls}">{value}</div></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="dashboard-section">CLASS & ZONE PERFORMANCE</div>', unsafe_allow_html=True)
+    strip = st.columns(8, gap="small")
+    strip_data = [
+        ("CLASS A", class_total(filtered, "A"), "red"), ("CLASS B", class_total(filtered, "B"), "orange"),
+        ("CLASS C", class_total(filtered, "C"), "blue"), ("CLASS D", class_total(filtered, "D"), "green"),
+        ("ZONE A", zone_total(filtered, "A"), "blue"), ("ZONE B", zone_total(filtered, "B"), "blue"),
+        ("ZONE C", zone_total(filtered, "C"), "blue"), ("ZONE D", zone_total(filtered, "D"), "blue"),
+    ]
+    for col, (label, value, cls) in zip(strip, strip_data):
+        with col:
+            st.markdown(f'<div class="mini-kpi"><div class="mini-kpi-label">{label}</div><div class="mini-kpi-value {cls}">{value}</div></div>', unsafe_allow_html=True)
+
+    overview_pareto = None
+    if defect_col and qty_col:
+        overview_pareto = filtered[[defect_col, qty_col]].copy()
+        overview_pareto[defect_col] = overview_pareto[defect_col].astype(str).str.strip()
+        overview_pareto[qty_col] = pd.to_numeric(overview_pareto[qty_col], errors="coerce").fillna(0)
+        overview_pareto = overview_pareto[~overview_pareto[defect_col].isin(["", "nan", "None", "NaN"])]
+        overview_pareto = overview_pareto.groupby(defect_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
+
+    st.markdown('<div class="dashboard-section">DEFECT FOCUS</div>', unsafe_allow_html=True)
+    left, right = st.columns([1.15, 1], gap="medium")
+    with left:
+        if overview_pareto is not None and not overview_pareto.empty:
+            top3 = overview_pareto.head(3).copy()
+            rows = []
+            for rank, (_, row) in enumerate(top3.iterrows(), 1):
+                qty = int(row[qty_col])
+                total_qty = float(overview_pareto[qty_col].sum())
+                pct = (qty / total_qty * 100) if total_qty else 0
+                rows.append(f'<tr><td><span class="rank-badge">{rank}</span></td><td>{html.escape(str(row[defect_col]))}</td><td><b>{qty}</b></td><td>{pct:.1f}%</td></tr>')
+            rows_html = ''.join(rows)
+            st.markdown(f'<div class="dashboard-card"><div class="dashboard-card-title">TOP 3 DEFECT TYPES</div><table class="top-defect-table"><thead><tr><th>#</th><th>Defect</th><th>Qty</th><th>Share</th></tr></thead><tbody>{rows_html}</tbody></table></div>', unsafe_allow_html=True)
+        else:
+            st.info("No defect type data available for the selected filters.")
+
+    with right:
+        if overview_pareto is not None and not overview_pareto.empty and overview_pareto[qty_col].sum() > 0:
+            mix = overview_pareto.copy()
+            if len(mix) > 5:
+                top = mix.head(5).copy()
+                other_qty = mix.iloc[5:][qty_col].sum()
+                other = pd.DataFrame({defect_col: ["Other"], qty_col: [other_qty]})
+                mix = pd.concat([top, other], ignore_index=True)
+            fig_mix = px.pie(mix, names=defect_col, values=qty_col, hole=0.42)
+            fig_mix.update_layout(height=310, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="v"))
+            fig_mix.update_traces(textposition="outside", textinfo="percent+value")
+            st.plotly_chart(fig_mix, use_container_width=True, config={"displayModeBar": False})
+        else:
+            st.info("No defect mix available for the selected filters.")
+
+    st.markdown('<div class="dashboard-section">PARETO & MODEL PERFORMANCE</div>', unsafe_allow_html=True)
+    p1, p2 = st.columns([1.35, 1], gap="medium")
+    with p1:
+        if overview_pareto is not None and not overview_pareto.empty and overview_pareto[qty_col].sum() > 0:
+            pareto_view = overview_pareto.copy()
+            total_qty = pareto_view[qty_col].sum()
+            pareto_view["Cumulative %"] = pareto_view[qty_col].cumsum() / total_qty * 100
+            fig_p = go.Figure()
+            fig_p.add_trace(go.Bar(x=pareto_view[defect_col], y=pareto_view[qty_col], name="Defect Qty", text=pareto_view[qty_col], textposition="outside", marker_color="#2563a8"))
+            fig_p.add_trace(go.Scatter(x=pareto_view[defect_col], y=pareto_view["Cumulative %"], name="Cumulative %", mode="lines+markers", yaxis="y2", line=dict(color="#dc3b45", width=2.5)))
+            fig_p.update_layout(height=360, margin=dict(l=25,r=60,t=20,b=90), xaxis=dict(tickangle=-35), yaxis=dict(title="Qty"), yaxis2=dict(title="Cumulative %", overlaying="y", side="right", range=[0,100], ticksuffix="%"), legend=dict(orientation="h", y=1.08))
+            st.plotly_chart(fig_p, use_container_width=True, config={"displayModeBar": False})
+        else:
+            st.info("No Pareto data available.")
+    with p2:
+        if model_col:
+            model_df = filtered.copy()
+            if qty_col:
+                model_df[qty_col] = pd.to_numeric(model_df[qty_col], errors="coerce").fillna(0)
+                model_summary = model_df.groupby(model_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False)
+                model_summary.columns = ["Model", "Total Defects"]
+            else:
+                model_summary = model_df.groupby(model_col).size().reset_index(name="Total Defects").sort_values("Total Defects", ascending=False)
+                model_summary.columns = ["Model", "Total Defects"]
+            model_summary["Model"] = model_summary["Model"].astype(str)
+            fig_m = px.bar(model_summary.head(10), x="Model", y="Total Defects", text="Total Defects")
+            fig_m.update_layout(height=360, margin=dict(l=20,r=20,t=20,b=55), xaxis_tickangle=-25)
+            fig_m.update_traces(marker_color="#4b78a8", textposition="outside")
+            st.plotly_chart(fig_m, use_container_width=True, config={"displayModeBar": False})
+        else:
+            st.info("Model column not available.")
+
+    st.markdown('<div class="dashboard-section">CLASS & ZONE DISTRIBUTION</div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2, gap="medium")
+    with c1:
+        class_df = pd.DataFrame({"Class": list("ABCD"), "Defects": [class_total(filtered, x) for x in "ABCD"]})
+        fig_class_overview = px.bar(class_df, x="Class", y="Defects", text="Defects")
+        fig_class_overview.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=30))
+        fig_class_overview.update_traces(marker_color="#4b78a8", textposition="outside")
+        st.plotly_chart(fig_class_overview, use_container_width=True, config={"displayModeBar": False})
+    with c2:
+        zone_df = pd.DataFrame({"Zone": list("ABCD"), "Defects": [zone_total(filtered, x) for x in "ABCD"]})
+        fig_zone_overview = px.bar(zone_df, x="Zone", y="Defects", text="Defects")
+        fig_zone_overview.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=30))
+        fig_zone_overview.update_traces(marker_color="#64748b", textposition="outside")
+        st.plotly_chart(fig_zone_overview, use_container_width=True, config={"displayModeBar": False})
+
+    st.markdown('<div class="dashboard-section">CHASSIS-LEVEL DEFECT SUMMARY</div>', unsafe_allow_html=True)
+    if chassis_col and not filtered.empty:
+        chassis_view = filtered.copy()
+        chassis_view[chassis_col] = chassis_view[chassis_col].astype(str)
+        if defect_col:
+            chassis_view[defect_col] = chassis_view[defect_col].astype(str)
+        if qty_col:
+            chassis_view[qty_col] = pd.to_numeric(chassis_view[qty_col], errors="coerce").fillna(0)
+            chassis_summary = chassis_view.groupby(chassis_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False)
+            chassis_summary.rename(columns={qty_col: "Total Defects"}, inplace=True)
+        else:
+            chassis_summary = chassis_view.groupby(chassis_col).size().reset_index(name="Total Defects").sort_values("Total Defects", ascending=False)
+        if defect_col:
+            defect_summary = chassis_view.groupby(chassis_col)[defect_col].apply(lambda s: ", ".join(pd.Series(s.dropna().astype(str).unique()).head(3))).reset_index(name="Top Defects")
+            chassis_summary = chassis_summary.merge(defect_summary, on=chassis_col, how="left")
+        st.dataframe(chassis_summary.head(15), use_container_width=True, height=300, hide_index=True)
+    else:
+        st.info("No chassis data available for the selected filters.")
+
+
+# ============================================================
+# KPI CARDS — DETAILED PAGES ONLY
+# ============================================================
+if page in ["⚠️ Total Defects"]:
     st.markdown('<div class="section-title">📌 Key Performance Indicators</div>', unsafe_allow_html=True)
-    
     kpis_row1 = [
         ("🚗 VEHICLES AUDITED", vehicle_count(filtered)),
         ("⚠️ TOTAL DEFECTS", total_defects(filtered)),
@@ -1036,57 +1191,21 @@ if page in ["🏠 Overview", "⚠️ Total Defects"]:
     ]
     for col, (label, value) in zip(st.columns(4), kpis_row1):
         with col:
-            st.markdown(
-                f"""
-                <div class="kpi">
-                    <div class="kpi-label">{label}</div>
-                    <div class="kpi-value">{value}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
+            st.markdown(f'<div class="kpi"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div></div>', unsafe_allow_html=True)
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(
-            f"""
-            <div class="kpi">
-                <div class="kpi-label">🟡 CLASS C</div>
-                <div class="kpi-value">{class_total(filtered, "C")}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c2:
-        st.markdown(
-            f"""
-            <div class="kpi">
-                <div class="kpi-label">🟢 CLASS D</div>
-                <div class="kpi-value">{class_total(filtered, "D")}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c3:
-        st.markdown(
-            f"""
-            <div class="kpi-dpu">
-                <div class="kpi-label">📊 DPU (Defects/Unit)</div>
-                <div class="kpi-value">{calculate_dpu(filtered)}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c4:
-        pass
-
+    for col, label, value in [
+        (c1, "🟡 CLASS C", class_total(filtered, "C")),
+        (c2, "🟢 CLASS D", class_total(filtered, "D")),
+        (c3, "📊 DPU (Defects/Unit)", calculate_dpu(filtered)),
+    ]:
+        with col:
+            st.markdown(f'<div class="kpi"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div></div>', unsafe_allow_html=True)
 
 # ============================================================
 # QUALITY DISTRIBUTION
 # ============================================================
-if page in ["🏠 Overview", "⚠️ Total Defects", "🧩 Class & Zone"]:
+if page in ["⚠️ Total Defects", "🧩 Class & Zone"]:
     st.markdown('<div class="section-title">📊 Quality Distribution</div>', unsafe_allow_html=True)
     a, b = st.columns(2)
     with a:
@@ -1124,7 +1243,7 @@ if category_col and qty_col:
     pareto_cat = pareto_cat[~pareto_cat[category_col].isin(["", "nan", "None", "NaN"])]
     pareto_cat = pareto_cat.groupby(category_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
 
-if page in ["🏠 Overview", "📈 Pareto Analysis"]:
+if page in ["📈 Pareto Analysis"]:
     st.markdown('<div class="section-title">📈 Defect Pareto Analysis & Action Focus</div>', unsafe_allow_html=True)
     
     # --- FIRST PARETO SECTION: DEFECT TYPE ---
@@ -1206,7 +1325,7 @@ if page in ["🏠 Overview", "📈 Pareto Analysis"]:
 # ============================================================
 # AI ASSISTANT
 # ============================================================
-if page in ["🏠 Overview", "🎙️ AI Assistant"]:
+if page in ["🎙️ AI Assistant"]:
     st.markdown(
         """
         <div class="voice-card">
@@ -1283,7 +1402,7 @@ if page in ["🏠 Overview", "🎙️ AI Assistant"]:
 # ============================================================
 # AUDIT RECORDS
 # ============================================================
-if page in ["🏠 Overview", "🚗 Vehicle Audit", "📋 Audit Data"]:
+if page in ["🚗 Vehicle Audit", "📋 Audit Data"]:
     st.markdown('<div class="section-title">📋 Audit Records</div>', unsafe_allow_html=True)
     st.caption(f"Showing {len(filtered)} records from {SHEET_NAME}")
     st.dataframe(filtered, use_container_width=True, height=430 if page != "🏠 Overview" else 300)
