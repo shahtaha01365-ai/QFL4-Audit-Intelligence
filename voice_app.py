@@ -1,107 +1,96 @@
-    gap: 20px;
-    border-bottom: 1px solid #333333;
-    padding-bottom: 16px;
-}
-.footer-col {
-    flex: 1;
-    min-width: 150px;
-}
-.footer-col-brand {
-    flex: 1.2;
-    min-width: 220px;
-}
-.footer-brand-title {
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    margin-bottom: 6px;
-}
-.footer-heading {
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-}
-.footer-text {
-    font-size: 10.5px;
-    line-height: 1.4;
-    color: #9ca3af;
-    margin-bottom: 4px;
-}
-.footer-links {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.footer-links li {
-    margin-bottom: 4px;
-}
-.footer-links a {
-    color: #9ca3af;
-    text-decoration: none;
-    font-size: 10.5px;
-}
-.footer-links a:hover {
-    color: #ffffff;
-}
-.footer-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 12px;
-    font-size: 9.5px;
-    color: #6b7280;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-</style>
+import os
+import re
+import html
+import json
+from datetime import datetime
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
+import plotly.express as px
+import plotly.graph_objects as go
 
-<div class="footer-container">
-    <div class="footer-grid">
-        <div class="footer-col-brand">
-            <div class="footer-brand-title">MASTER MOTORS • FUSO QFL4</div>
-            <div class="footer-text">Final Quality Control Management & Assembly Plant Intelligence.</div>
-            <div class="footer-text" style="margin-top: 6px;"><b>Plant Location:</b> Port Qasim Authority, Karachi</div>
-            <div class="footer-text"><b>Dept:</b> Quality Assurance, Health, Safety & Environment</div>
-        </div>
-        
-        <div class="footer-col">
-            <div class="footer-heading">COMMERCIAL VEHICLES</div>
-            <ul class="footer-links">
-                <li><a href="#">FUSO Canter Light Duty</a></li>
-                <li><a href="#">FUSO Heavy Trucks</a></li>
-                <li><a href="#">Master Bus Series</a></li>
-                <li><a href="#">Specialized Chassis</a></li>
-            </ul>
-        </div>
-        
-        <div class="footer-col">
-            <div class="footer-heading">QUALITY STANDARDS</div>
-            <ul class="footer-links">
-                <li><a href="#">QFL4 Inspection Protocol</a></li>
-                <li><a href="#">MFTBC Product Audit</a></li>
-                <li><a href="#">Defect Class (A, B, C, D)</a></li>
-                <li><a href="#">DPU Performance Benchmarks</a></li>
-            </ul>
-        </div>
-        
-        <div class="footer-col">
-            <div class="footer-heading">SYSTEM &SUPPORT</div>
-            <ul class="footer-links">
-                <li><a href="#">Gemini AI Assistant</a></li>
-                <li><a href="#">Pareto Defect Analytics</a></li>
-                <li><a href="#">Audit Records Dashboard</a></li>
-                <li><a href="#">User Access Controls</a></li>
-            </ul>
-        </div>
-    </div>
-    
-    <div class="footer-bottom">
-        <div>© 2026 Master Motor Corporation Ltd. All Rights Reserved.</div>
-        <div>Powered by Google Gemini AI & Streamlit | QFL4 Portal</div>
-    </div>
-</div>
-""", height=350)
+# Google Gemini AI
+import google.generativeai as genai
+from streamlit_mic_recorder import mic_recorder
+
+
+# ============================================================
+# PAGE / APP CONFIG
+# ============================================================
+st.set_page_config(
+    page_title="QFL4 AI Audit Intelligence",
+    page_icon="🎙️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+EXCEL_FILE = "audit_data.xlsx"
+SHEET_NAME = "Sheet1"
+USERS_FILE = "users.json"
+
+AI_MODEL = "gemini-3.6-flash"
+
+LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
+LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = "user"
+if "show_signup" not in st.session_state:
+    st.session_state.show_signup = False
+
+
+# ============================================================
+# GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
+# ============================================================
+st.markdown(
+    """
+<style>
+#MainMenu, footer, [data-testid="stStatusWidget"], .stAppDeployButton {
+    visibility: hidden !important;
+    display: none !important;
+}
+
+/* Header ko poora hide nahi karna - warna sidebar ka open/close arrow bhi ghayab ho jata hai */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    box-shadow: none !important;
+    height: 3rem !important;
+}
+
+/* Sidebar collapse/expand ka arrow hamesha visible aur clickable rahe */
+[data-testid="collapsedControl"] {
+    visibility: visible !important;
+    display: flex !important;
+    z-index: 999999 !important;
+}
+button[kind="header"] {
+    visibility: visible !important;
+    display: flex !important;
+}
+
+.stApp {
+    background: #eef1f5;
+}
+
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 3.5rem !important;
+    max-width: 1500px;
+}
+
+[data-testid="stSidebar"] {
+    background: #fff !important;
+    border-right: 1px solid #dce3ea;
+}
+
+.nav-brand {
+    padding: 8px 8px 18px;
+    border-bottom: 1px solid #edf1f5;
+    margin-bottom: 10px;
+}
+.nav-brand-top { color: #1d5fa7; font-size: 10px; font-weight: 900; letter-spacing: 1.8px; }
+.nav-brand-title { color: #243447; font-size: 21px; font-weight: 900; margin-top: 5px; }
+.nav-caption { color: #94a3b8; font-size: 11px; margin-top: 3px; }
+.nav-section { color: #94a3b8; font-size: 10px; font-weight: 900; letter-spacing: 1.2px; padding: 13px 8px 6px; }
