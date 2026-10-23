@@ -393,6 +393,46 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .rank-badge { display:inline-block; min-width:24px; padding:3px 6px; border-radius:6px; background:#eef2f7; text-align:center; font-weight:900; }
 
 
+/* HIGH VISIBILITY INPUTS GLOBALLY: Streamlit widgets may be outside stForm. */
+/* Selectboxes, text inputs, number inputs, date inputs, and textareas */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div {
+    background-color: #ffffff !important;
+    border: 2px solid #64748b !important;
+    border-radius: 9px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12) !important;
+    min-height: 44px !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:hover,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:hover,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div:hover {
+    border-color: #2563eb !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:focus-within,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div:focus-within {
+    border: 2px solid #1d4ed8 !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22) !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] span,
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
+div[data-testid="stDateInput"] input,
+div[data-testid="stTextArea"] textarea {
+    color: #172554 !important;
+}
+
 /* CLEAR, HIGH-CONTRAST FORM FIELDS (especially Add Audit Data) */
 div[data-testid="stForm"] div[data-baseweb="select"] > div,
 div[data-testid="stForm"] div[data-baseweb="input"] > div,
