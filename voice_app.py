@@ -50,6 +50,52 @@ if "show_signup" not in st.session_state:
 # ============================================================
 st.markdown(
     """
+    <style>
+
+/* Strong black outlines for every Streamlit input/control */
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+div[data-baseweb="textarea"] > div,
+div[data-baseweb="datepicker"] > div,
+div[data-baseweb="timepicker"] > div,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div {
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+}
+div[data-baseweb="select"] > div:hover,
+div[data-baseweb="input"] > div:hover,
+div[data-baseweb="textarea"] > div:hover {
+    border-color: #000000 !important;
+}
+div[data-baseweb="select"] > div:focus-within,
+div[data-baseweb="input"] > div:focus-within,
+div[data-baseweb="textarea"] > div:focus-within {
+    border: 2px solid #000000 !important;
+    outline: 1px solid #000000 !important;
+    outline-offset: 1px !important;
+}
+div[data-testid="stCheckbox"] label > div:first-child,
+div[data-testid="stRadio"] label > div:first-child {
+    border: 2px solid #000000 !important;
+}
+div[data-testid="stButton"] > button,
+button[kind="primary"],
+div[data-testid="stDownloadButton"] > button {
+    border: 2px solid #000000 !important;
+}
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
 <style>
 #MainMenu, footer, [data-testid="stStatusWidget"], .stAppDeployButton {
     visibility: hidden !important;
@@ -2082,56 +2128,6 @@ components.html("""
     flex-wrap: wrap;
     gap: 10px;
 }
-
-/* FINAL FIX: force visible outlines on Streamlit/BaseWeb controls in every layout */
-div[data-testid="stSelectbox"],
-div[data-testid="stMultiSelect"],
-div[data-testid="stTextInput"],
-div[data-testid="stNumberInput"],
-div[data-testid="stDateInput"],
-div[data-testid="stTextArea"] {
-    background: transparent !important;
-}
-div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
-div[data-testid="stMultiSelect"] [data-baseweb="select"] > div,
-div[data-testid="stTextInput"] [data-baseweb="input"],
-div[data-testid="stNumberInput"] [data-baseweb="input"],
-div[data-testid="stDateInput"] [data-baseweb="input"],
-div[data-testid="stTextArea"] [data-baseweb="textarea"] {
-    background: #ffffff !important;
-    border: 2px solid #64748b !important;
-    border-radius: 8px !important;
-    outline: 1px solid rgba(100,116,139,.15) !important;
-    min-height: 44px !important;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.8), 0 1px 3px rgba(15,23,42,.12) !important;
-}
-div[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
-div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover,
-div[data-testid="stTextInput"] [data-baseweb="input"]:hover,
-div[data-testid="stNumberInput"] [data-baseweb="input"]:hover,
-div[data-testid="stDateInput"] [data-baseweb="input"]:hover,
-div[data-testid="stTextArea"] [data-baseweb="textarea"]:hover {
-    border-color: #2563eb !important;
-}
-div[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
-div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:focus-within,
-div[data-testid="stTextInput"] [data-baseweb="input"]:focus-within,
-div[data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
-div[data-testid="stDateInput"] [data-baseweb="input"]:focus-within,
-div[data-testid="stTextArea"] [data-baseweb="textarea"]:focus-within {
-    border: 2px solid #1d4ed8 !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,.25) !important;
-}
-div[data-testid="stSelectbox"] input,
-div[data-testid="stMultiSelect"] input,
-div[data-testid="stTextInput"] input,
-div[data-testid="stNumberInput"] input,
-div[data-testid="stDateInput"] input,
-div[data-testid="stTextArea"] textarea {
-    background: #ffffff !important;
-    color: #172554 !important;
-}
-
 </style>
 
 <div class="footer-container">
