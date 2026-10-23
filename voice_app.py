@@ -761,6 +761,7 @@ with st.sidebar:
         "⚠️ Total Defects",
         "📈 Pareto Analysis",
         "🚗 Vehicle Audit",
+        "📄 Download Chassis Sheet",
         "🧩 Class & Zone",
         "📋 Audit Data",
     ]
@@ -1174,6 +1175,130 @@ else:
     if page in titles:
         title, description = titles[page]
         page_title(title, description)
+
+
+
+# ============================================================
+# DOWNLOAD ONE COMPLETED AUDIT SHEET PER CHASSIS
+# ============================================================
+if page == "📄 Download Chassis Sheet":
+    page_title("Download Chassis Audit Sheet", "Chassis select karein; original FUSO audit template mein details automatically fill ho kar download hongi.")
+
+    chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
+    if not chassis_col or df.empty:
+        st.warning("Audit data mein Chassis No. column ya records nahin milay.")
+        st.stop()
+
+    chassis_values = sorted(
+        df[chassis_col].dropna().astype(str).str.strip().loc[lambda s: s.ne("")].unique().tolist()
+    )
+    if not chassis_values:
+        st.info("Abhi koi chassis record available nahin.")
+        st.stop()
+
+    chosen_chassis = st.selectbox("Chassis No. select karein", chassis_values)
+    vehicle_rows = df[df[chassis_col].fillna("").astype(str).str.strip() == chosen_chassis]
+    vehicle = vehicle_rows.iloc[0]
+
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx")
+    if not os.path.exists(template_path):
+        st.error("Template file app ke folder mein nahin mili. 'QFL 4-Product Audit Sheet (Fuso) Revised.xlsx' ko app ke saath rakhein.")
+        st.stop()
+
+    st.write("**Vehicle details preview**")
+    preview_cols = [c for c in [
+        find_col(df, ["Date"]), find_col(df, ["Model", "Model Name"]),
+        find_col(df, ["Engine", "Engine No", "Engine Number"]), chassis_col
+    ] if c]
+    st.dataframe(vehicle_rows[preview_cols].head(1), use_container_width=True, hide_index=True)
+
+    if st.button("Prepare Chassis Sheet", type="primary", use_container_width=True):
+        try:
+            from io import BytesIO
+            import openpyxl
+            from copy import copy
+
+            template_wb = openpyxl.load_workbook(template_path)
+            template_ws = template_wb[template_wb.sheetnames[0]]
+
+            def cell_value(row, names, default=""):
+                col = find_col(vehicle_rows, names)
+                if not col:
+                    return default
+                value = vehicle.get(col, default)
+                if pd.isna(value):
+                    return default
+                if isinstance(value, (pd.Timestamp, datetime)):
+                    return value.strftime("%d-%m-%Y")
+                return str(value).strip()
+
+            model_value = cell_value(0, ["Model", "Model Name"])
+            date_value = cell_value(0, ["Date"])
+            engine_value = cell_value(0, ["Engine", "Engine No", "Engine Number", "Engine#"])
+            # Write only into existing template header cells; keep all layout/styles unchanged.
+            template_ws["A3"] = f"MODEL: {model_value}"
+            template_ws["D3"] = f"DATE: {date_value}"
+            template_ws["A4"] = f"ENGINE# {engine_value}"
+            template_ws["D4"] = f"CHASSIS# {chosen_chassis}"
+
+            defect_columns = []
+            for col_name in vehicle_rows.columns:
+                match = re.fullmatch(r"Defect\s*(\d+)", str(col_name).strip(), flags=re.I)
+                if match:
+                    defect_columns.append((int(match.group(1)), col_name))
+            defect_columns.sort()
+
+            # Clear existing data rows without changing formatting.
+            for r in range(6, 36):
+                template_ws.cell(r, 1).value = r - 5
+                for c in range(2, 9):
+                    template_ws.cell(r, c).value = None
+
+            filled = 0
+            for n, defect_col_name in defect_columns:
+                defect_text = vehicle.get(defect_col_name)
+                if pd.isna(defect_text) or not str(defect_text).strip() or str(defect_text).strip().lower() == "nan":
+                    continue
+                if filled >= 30:
+                    break
+                row_num = 6 + filled
+                # The Defect N value is the completed nomenclature stored by the data-entry page.
+                template_ws.cell(row_num, 2).value = str(defect_text).strip()
+
+                dept_col = find_col(vehicle_rows, [f"Department {n}", f"Defect Category {n}", "Department", "Defect Category"])
+                dept_value = vehicle.get(dept_col, "") if dept_col else ""
+                if not pd.isna(dept_value):
+                    template_ws.cell(row_num, 3).value = str(dept_value).strip()
+
+                class_col = find_col(vehicle_rows, [f"Defect Class {n}", f"Class {n}"])
+                class_value = vehicle.get(class_col, "") if class_col else ""
+                if (pd.isna(class_value) or not str(class_value).strip()) and n == 1:
+                    class_col = find_col(vehicle_rows, ["Defect Class", "Class"])
+                    class_value = vehicle.get(class_col, "") if class_col else ""
+                class_value = str(class_value).strip().upper() if not pd.isna(class_value) else ""
+                if class_value in ("A", "B", "C", "D"):
+                    template_ws.cell(row_num, 4 + "ABCD".index(class_value)).value = "✓"
+                filled += 1
+
+            # Mark the template's Fluid Check area as checked. The provided template
+            # has no individual fluid-name rows/checkboxes, so use its blank check cell.
+            template_ws["B36"] = "✓"
+            output = BytesIO()
+            template_wb.save(output)
+            output.seek(0)
+            safe_chassis = re.sub(r"[^A-Za-z0-9_-]+", "_", chosen_chassis)
+            st.download_button(
+                "⬇️ Download Excel Sheet",
+                data=output.getvalue(),
+                file_name=f"FUSO_Audit_{safe_chassis}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+            st.success(f"Sheet ready: {filled} defect row(s) filled. Original template formatting preserved.")
+            st.caption("Note: template mein individual fluid names/checkboxes nahin thay; Fluid Check area mein ✓ mark kiya gaya hai.")
+        except Exception as exc:
+            st.error(f"Sheet prepare nahin ho saki: {exc}")
+    st.stop()
 
 
 # ============================================================
