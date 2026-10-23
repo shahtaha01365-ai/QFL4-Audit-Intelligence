@@ -27,7 +27,7 @@ st.set_page_config(
 
 APP_DIR = Path(__file__).resolve().parent
 EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")
-SHEET_NAME = "Sheet1"
+SHEET_NAME = "Audit Entries"
 USERS_FILE = str(APP_DIR / "users.json")
 TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
 TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
@@ -593,13 +593,21 @@ def ab_total(d):
     return nsum(d, c) if c else class_total(d, "A") + class_total(d, "B")
 
 def total_defects(d):
-    c = find_col(d, ["Total", "Total Defects", "Defect Quantity", "Defects"])
-    if c:
-        return nsum(d, c)
-    s = sum(class_total(d, x) for x in "ABCD")
-    if s:
-        return s
-    return nsum(d, find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity"]))
+    # Prefer the actual quantity entered on the audit form. Some imported
+    # workbooks contain a "Total" column that is blank/zero even when QTY > 0.
+    qty_col = find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+    qty_total = nsum(d, qty_col)
+    if qty_total:
+        return qty_total
+
+    # Fall back to class totals when present.
+    class_sum = sum(class_total(d, x) for x in "ABCD")
+    if class_sum:
+        return class_sum
+
+    # Last resort: use a general Total column.
+    total_col = find_col(d, ["Total Defects", "Total", "Defects"])
+    return nsum(d, total_col)
 
 def calculate_dpu(d):
     v_count = vehicle_count(d)
@@ -635,7 +643,7 @@ def make_ai_context(d):
         agg = d.groupby(defect_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
         summary_str = "\n\nCOMPLETE DEFECT TYPE SUMMARY (Total Quantities per Defect Type across all records):\n" + agg.to_string(index=False)
 
-    category_c = find_col(d, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
+    category_c = find_col(d, ["Defect Category", "Category"])
     if category_c and qty_c:
         agg_cat = d.groupby(category_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
         summary_str += "\n\nCOMPLETE DEFECT CATEGORY SUMMARY:\n" + agg_cat.to_string(index=False)
@@ -953,23 +961,29 @@ if page == "➕ Add Audit Data":
 
         st.markdown("### Defect Nomenclature")
         st.caption(
-            "Har Defect Entry ke liye Defect Type, Department, Class, Zone, Quantity "
-            "aur nomenclature details alag se enter karein."
+            "Har entry mein Defect Type aur Defect Category alag enter karein. Department, Class, Zone, Quantity "
+            "aur nomenclature details bhi record hongi."
         )
 
         nomenclature_entries = []
         for idx in range(int(defect_rows_count)):
             st.markdown(f"**Defect Entry {idx + 1}**")
-            a1, a2, a3 = st.columns([1.4, 1.4, 1])
+            a1, a2 = st.columns(2)
             with a1:
                 entry_type = st.text_input("Defect Type", "Paint Scratch" if idx == 0 else "",
                                            key=f"entry_type_{idx}")
             with a2:
+                entry_category = st.text_input("Defect Category", "",
+                                               key=f"entry_category_{idx}")
+            a3, a4, a5 = st.columns([1.2, 1.2, 1])
+            with a3:
                 department = st.text_input("Department", "Body Shop" if idx == 0 else "",
                                            key=f"entry_department_{idx}")
-            with a3:
+            with a4:
                 entry_qty = st.number_input("Total Defect Quantity (QTY)", min_value=1, value=1,
                                             step=1, key=f"entry_qty_{idx}")
+            with a5:
+                st.caption("Type aur Category alag fields hain.")
 
             b1, b2, b3 = st.columns(3)
             with b1:
@@ -997,8 +1011,8 @@ if page == "➕ Add Audit Data":
                                        key=f"nomenclature_defect_{idx}")
 
             nomenclature_entries.append({
-                "type": entry_type.strip(), "department": department.strip(),
-                "qty": int(entry_qty), "class": entry_class, "zone": entry_zone,
+                "type": entry_type.strip(), "category": entry_category.strip(),
+                "department": department.strip(), "qty": int(entry_qty), "class": entry_class, "zone": entry_zone,
                 "vloc": vloc, "area": area, "part": part.strip(),
                 "ploc": ploc, "defect": defect.strip()
             })
@@ -1022,10 +1036,10 @@ if page == "➕ Add Audit Data":
 
                 valid_entries = []
                 for item in nomenclature_entries:
-                    if not item["part"] and not item["defect"] and not item["type"] and not item["department"]:
+                    if not item["part"] and not item["defect"] and not item["type"] and not item["category"] and not item["department"]:
                         continue
-                    if not item["type"] or not item["department"] or not item["part"] or not item["defect"]:
-                        st.error("Har filled entry mein Defect Type, Department, Part Name aur Defect Description lazmi hain.")
+                    if not item["type"] or not item["category"] or not item["department"] or not item["part"] or not item["defect"]:
+                        st.error("Har filled entry mein Defect Type, Defect Category, Department, Part Name aur Defect Description lazmi hain.")
                         st.stop()
                     valid_entries.append(item)
 
@@ -1052,7 +1066,7 @@ if page == "➕ Add Audit Data":
                     "Engine No": str(engine_no).strip(),
                     "Defect Type": first["type"],
                     "Department": first["department"],
-                    "Defect Category": first["department"],
+                    "Defect Category": first["category"],
                     "QTY": total_qty,
                 }
 
@@ -1083,8 +1097,8 @@ if page == "➕ Add Audit Data":
                 # Store separate metadata columns for every nomenclature entry.
                 for n, item in enumerate(valid_entries, start=1):
                     for field, value in [
-                        ("Defect Type", item["type"]), ("Department", item["department"]),
-                        ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
+                        ("Defect Type", item["type"]), ("Defect Category", item["category"]),
+                        ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
                     ]:
                         col = f"{field} {n}"
                         if col not in df_existing.columns:
@@ -1122,8 +1136,8 @@ if page == "➕ Add Audit Data":
                             type_col = f"Defect Type {n}"
                             if pd.isna(df_existing.at[target_idx, type_col]) or not str(df_existing.at[target_idx, type_col]).strip():
                                 for field, value in [
-                                    ("Defect Type", item["type"]), ("Department", item["department"]),
-                                    ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
+                                    ("Defect Type", item["type"]), ("Defect Category", item["category"]),
+                                    ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
                                 ]:
                                     df_existing.at[target_idx, f"{field} {n}"] = value
                                 break
@@ -1132,8 +1146,8 @@ if page == "➕ Add Audit Data":
                         new_entry[f"Defect {n}"] = nomenclature
                     for n, item in enumerate(valid_entries, start=1):
                         for field, value in [
-                            ("Defect Type", item["type"]), ("Department", item["department"]),
-                            ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
+                            ("Defect Type", item["type"]), ("Defect Category", item["category"]),
+                            ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
                         ]:
                             new_entry[f"{field} {n}"] = value
                     for col in df_existing.columns:
@@ -1147,7 +1161,8 @@ if page == "➕ Add Audit Data":
                         ignore_index=True,
                     )
 
-                df_existing.to_excel(EXCEL_FILE, sheet_name=SHEET_NAME, index=False)
+                with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+                    df_existing.to_excel(writer, sheet_name=SHEET_NAME, index=False)
                 st.cache_data.clear()
                 st.success(f"{len(valid_entries)} Defect Entry(s) save ho gayi. Chassis {str(chassis_no).strip()} ki ek row maintain ki gayi hai.")
                 st.rerun()
@@ -1337,7 +1352,7 @@ chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
 # Defect fields are resolved here so the Overview dashboard and all
 # downstream analytics can use them before any page-specific rendering.
 defect_col = find_col(df, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
-category_col = find_col(df, ["Defect Category", "Category", "Defect Class", "Type", "Group"])
+category_col = find_col(df, ["Defect Category", "Category"])
 qty_col = find_col(df, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
 
 # Month / Year and exact Date filters replace the old Vehicle filter.
@@ -1452,13 +1467,44 @@ if page == "🏠 Overview":
         with col:
             st.markdown(f'<div class="mini-kpi"><div class="mini-kpi-label">{label}</div><div class="mini-kpi-value {cls}">{value}</div></div>', unsafe_allow_html=True)
 
-    overview_pareto = None
-    if defect_col and qty_col:
-        overview_pareto = filtered[[defect_col, qty_col]].copy()
-        overview_pareto[defect_col] = overview_pareto[defect_col].astype(str).str.strip()
-        overview_pareto[qty_col] = pd.to_numeric(overview_pareto[qty_col], errors="coerce").fillna(0)
-        overview_pareto = overview_pareto[~overview_pareto[defect_col].isin(["", "nan", "None", "NaN"])]
-        overview_pareto = overview_pareto.groupby(defect_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
+    def build_pareto_summary(data, label_col):
+        """Count each numbered defect entry independently; fallback to base columns for legacy rows."""
+        if not label_col or not qty_col:
+            return None
+        numbered = []
+        for c in data.columns:
+            m = re.fullmatch(re.escape(label_col) + r"\s+(\d+)", str(c).strip(), flags=re.IGNORECASE)
+            if m:
+                numbered.append((int(m.group(1)), c))
+        numbered.sort()
+        rows = []
+        if numbered:
+            for _, row in data.iterrows():
+                found_numbered = False
+                for n, c in numbered:
+                    label = str(row.get(c, "") if pd.notna(row.get(c, pd.NA)) else "").strip()
+                    qcol = next((x for x in data.columns if str(x).strip().lower() == f"qty {n}".lower()), None)
+                    q = pd.to_numeric(pd.Series([row.get(qcol, 0) if qcol else 0]), errors="coerce").fillna(0).iloc[0]
+                    if label and label.lower() not in ("nan", "none"):
+                        rows.append({label_col: label, qty_col: float(q)})
+                        found_numbered = True
+                if not found_numbered:
+                    label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
+                    q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
+                    if label and label.lower() not in ("nan", "none"):
+                        rows.append({label_col: label, qty_col: float(q)})
+        else:
+            for _, row in data.iterrows():
+                label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
+                q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
+                if label and label.lower() not in ("nan", "none"):
+                    rows.append({label_col: label, qty_col: float(q)})
+        if not rows:
+            return pd.DataFrame(columns=[label_col, qty_col])
+        out = pd.DataFrame(rows).groupby(label_col, as_index=False)[qty_col].sum()
+        return out.sort_values(qty_col, ascending=False).reset_index(drop=True)
+
+    overview_pareto = build_pareto_summary(filtered, defect_col)
 
     st.markdown('<div class="dashboard-section">DEFECT FOCUS</div>', unsafe_allow_html=True)
     left, right = st.columns([1.15, 1], gap="medium")
@@ -1603,21 +1649,8 @@ if page in ["⚠️ Total Defects", "🧩 Class & Zone"]:
 # ============================================================
 # PARETO ANALYSIS (DEFECT TYPE & DEFECT CATEGORY)
 # ============================================================
-pareto = None
-if defect_col and qty_col:
-    pareto = filtered[[defect_col, qty_col]].copy()
-    pareto[defect_col] = pareto[defect_col].astype(str).str.strip()
-    pareto[qty_col] = pd.to_numeric(pareto[qty_col], errors="coerce").fillna(0)
-    pareto = pareto[~pareto[defect_col].isin(["", "nan", "None", "NaN"])]
-    pareto = pareto.groupby(defect_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
-
-pareto_cat = None
-if category_col and qty_col:
-    pareto_cat = filtered[[category_col, qty_col]].copy()
-    pareto_cat[category_col] = pareto_cat[category_col].astype(str).str.strip()
-    pareto_cat[qty_col] = pd.to_numeric(pareto_cat[qty_col], errors="coerce").fillna(0)
-    pareto_cat = pareto_cat[~pareto_cat[category_col].isin(["", "nan", "None", "NaN"])]
-    pareto_cat = pareto_cat.groupby(category_col, as_index=False)[qty_col].sum().sort_values(qty_col, ascending=False).reset_index(drop=True)
+pareto = build_pareto_summary(filtered, defect_col) if defect_col and qty_col else None
+pareto_cat = build_pareto_summary(filtered, category_col) if category_col and qty_col else None
 
 if page in ["📈 Pareto Analysis"]:
     st.markdown('<div class="section-title">📈 Defect Pareto Analysis & Action Focus</div>', unsafe_allow_html=True)
