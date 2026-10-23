@@ -1339,21 +1339,8 @@ if page == "📄 Download Chassis Sheet":
             template_ws["A4"] = f"ENGINE# {engine_value}"
             template_ws["D4"] = f"CHASSIS# {chosen_chassis}"
 
-            # Unique control number generated when this chassis audit sheet is prepared.
-            # Timestamp-based ID avoids dependence on Excel formulas or external storage.
-            control_number = "FQCM-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-            template_ws["I2"] = "CONTROL NO.:"
-            template_ws["J2"] = control_number
-            template_ws["I2"]._style = copy(template_ws["D3"]._style)
-            template_ws["J2"]._style = copy(template_ws["D3"]._style)
-            template_ws["I2"].font = copy(template_ws["D3"].font)
-            template_ws["J2"].font = copy(template_ws["D3"].font)
-            template_ws["I2"].font = template_ws["I2"].font.copy(name="Arial", size=10, bold=True)
-            template_ws["J2"].font = template_ws["J2"].font.copy(name="Arial", size=10, bold=True)
-            template_ws["I2"].alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
-            template_ws["J2"].alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
-            template_ws.column_dimensions["I"].width = 14
-            template_ws.column_dimensions["J"].width = 22
+            # The template header contains merged cells. Only write the Control Number
+            # to the top-left cell I2 of the merged I2:L2 range below; never write J2.
 
             defect_columns = []
             for col_name in vehicle_rows.columns:
