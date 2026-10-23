@@ -14,38 +14,6 @@ import plotly.graph_objects as go
 import google.generativeai as genai
 from streamlit_mic_recorder import mic_recorder
 
-# Persistent black borders for all Streamlit form controls
-st.markdown(
-    """
-    <style>
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="input"] > div,
-    div[data-baseweb="textarea"] > div,
-    div[data-testid="stNumberInput"] [data-baseweb="input"] > div,
-    div[data-testid="stTextInput"] [data-baseweb="input"] > div,
-    div[data-testid="stTextArea"] [data-baseweb="textarea"] > div,
-    div[data-testid="stDateInput"] [data-baseweb="input"] > div {
-        border: 1.5px solid #000000 !important;
-        border-radius: 6px !important;
-        background-color: #ffffff !important;
-        box-shadow: none !important;
-    }
-    div[data-baseweb="select"] > div:hover,
-    div[data-baseweb="input"] > div:hover,
-    div[data-baseweb="textarea"] > div:hover,
-    div[data-baseweb="select"] > div:focus-within,
-    div[data-baseweb="input"] > div:focus-within,
-    div[data-baseweb="textarea"] > div:focus-within {
-        border: 1.5px solid #000000 !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
 
 # ============================================================
 # PAGE / APP CONFIG
@@ -80,52 +48,6 @@ if "show_signup" not in st.session_state:
 # ============================================================
 # GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
 # ============================================================
-st.markdown(
-    """
-    <style>
-
-/* Strong black outlines for every Streamlit input/control */
-div[data-baseweb="select"] > div,
-div[data-baseweb="input"] > div,
-div[data-baseweb="textarea"] > div,
-div[data-baseweb="datepicker"] > div,
-div[data-baseweb="timepicker"] > div,
-div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
-div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
-div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
-div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div {
-    border: 2px solid #000000 !important;
-    border-radius: 6px !important;
-    background-color: #ffffff !important;
-    box-shadow: none !important;
-}
-div[data-baseweb="select"] > div:hover,
-div[data-baseweb="input"] > div:hover,
-div[data-baseweb="textarea"] > div:hover {
-    border-color: #000000 !important;
-}
-div[data-baseweb="select"] > div:focus-within,
-div[data-baseweb="input"] > div:focus-within,
-div[data-baseweb="textarea"] > div:focus-within {
-    border: 2px solid #000000 !important;
-    outline: 1px solid #000000 !important;
-    outline-offset: 1px !important;
-}
-div[data-testid="stCheckbox"] label > div:first-child,
-div[data-testid="stRadio"] label > div:first-child {
-    border: 2px solid #000000 !important;
-}
-div[data-testid="stButton"] > button,
-button[kind="primary"],
-div[data-testid="stDownloadButton"] > button {
-    border: 2px solid #000000 !important;
-}
-
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 st.markdown(
     """
 <style>
@@ -469,85 +391,6 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .top-defect-table th { text-align:left; background:#f1f5f9; color:#475569; padding:9px 10px; font-weight:900; }
 .top-defect-table td { border-top:1px solid #e5e7eb; padding:9px 10px; color:#334155; font-weight:650; }
 .rank-badge { display:inline-block; min-width:24px; padding:3px 6px; border-radius:6px; background:#eef2f7; text-align:center; font-weight:900; }
-
-
-/* HIGH VISIBILITY INPUTS GLOBALLY: Streamlit widgets may be outside stForm. */
-/* Selectboxes, text inputs, number inputs, date inputs, and textareas */
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
-div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
-div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
-div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
-div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
-div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div {
-    background-color: #ffffff !important;
-    border: 2px solid #64748b !important;
-    border-radius: 9px !important;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12) !important;
-    min-height: 44px !important;
-}
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:hover,
-div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:hover,
-div[data-testid="stTextInput"] div[data-baseweb="input"] > div:hover,
-div[data-testid="stNumberInput"] div[data-baseweb="input"] > div:hover,
-div[data-testid="stDateInput"] div[data-baseweb="input"] > div:hover,
-div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div:hover {
-    border-color: #2563eb !important;
-}
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within,
-div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:focus-within,
-div[data-testid="stTextInput"] div[data-baseweb="input"] > div:focus-within,
-div[data-testid="stNumberInput"] div[data-baseweb="input"] > div:focus-within,
-div[data-testid="stDateInput"] div[data-baseweb="input"] > div:focus-within,
-div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div:focus-within {
-    border: 2px solid #1d4ed8 !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22) !important;
-}
-div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
-div[data-testid="stMultiSelect"] div[data-baseweb="select"] span,
-div[data-testid="stTextInput"] input,
-div[data-testid="stNumberInput"] input,
-div[data-testid="stDateInput"] input,
-div[data-testid="stTextArea"] textarea {
-    color: #172554 !important;
-}
-
-/* CLEAR, HIGH-CONTRAST FORM FIELDS (especially Add Audit Data) */
-div[data-testid="stForm"] div[data-baseweb="select"] > div,
-div[data-testid="stForm"] div[data-baseweb="input"] > div,
-div[data-testid="stForm"] div[data-baseweb="textarea"] > div,
-div[data-testid="stForm"] [data-testid="stDateInput"] div[data-baseweb="input"] > div,
-div[data-testid="stForm"] [data-testid="stNumberInput"] div[data-baseweb="input"] > div {
-    background: #ffffff !important;
-    border: 1.5px solid #94a3b8 !important;
-    border-radius: 9px !important;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07) !important;
-    min-height: 42px !important;
-    transition: border-color .18s ease, box-shadow .18s ease !important;
-}
-div[data-testid="stForm"] div[data-baseweb="select"] > div:hover,
-div[data-testid="stForm"] div[data-baseweb="input"] > div:hover,
-div[data-testid="stForm"] div[data-baseweb="textarea"] > div:hover {
-    border-color: #2563eb !important;
-}
-div[data-testid="stForm"] div[data-baseweb="select"] > div:focus-within,
-div[data-testid="stForm"] div[data-baseweb="input"] > div:focus-within,
-div[data-testid="stForm"] div[data-baseweb="textarea"] > div:focus-within {
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.17) !important;
-}
-div[data-testid="stForm"] div[data-baseweb="select"] span,
-div[data-testid="stForm"] div[data-baseweb="input"] input,
-div[data-testid="stForm"] textarea {
-    color: #172554 !important;
-}
-div[data-testid="stForm"] label {
-    color: #1e293b !important;
-    font-weight: 650 !important;
-}
-/* Fluid check controls get a subtle green tint so they stand out clearly. */
-div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] div[data-baseweb="select"] > div {
-    border-color: #86a3bd !important;
-}
 
 </style>
 """,
