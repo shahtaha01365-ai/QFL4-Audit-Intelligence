@@ -2082,6 +2082,56 @@ components.html("""
     flex-wrap: wrap;
     gap: 10px;
 }
+
+/* FINAL FIX: force visible outlines on Streamlit/BaseWeb controls in every layout */
+div[data-testid="stSelectbox"],
+div[data-testid="stMultiSelect"],
+div[data-testid="stTextInput"],
+div[data-testid="stNumberInput"],
+div[data-testid="stDateInput"],
+div[data-testid="stTextArea"] {
+    background: transparent !important;
+}
+div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
+div[data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+div[data-testid="stTextInput"] [data-baseweb="input"],
+div[data-testid="stNumberInput"] [data-baseweb="input"],
+div[data-testid="stDateInput"] [data-baseweb="input"],
+div[data-testid="stTextArea"] [data-baseweb="textarea"] {
+    background: #ffffff !important;
+    border: 2px solid #64748b !important;
+    border-radius: 8px !important;
+    outline: 1px solid rgba(100,116,139,.15) !important;
+    min-height: 44px !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.8), 0 1px 3px rgba(15,23,42,.12) !important;
+}
+div[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
+div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover,
+div[data-testid="stTextInput"] [data-baseweb="input"]:hover,
+div[data-testid="stNumberInput"] [data-baseweb="input"]:hover,
+div[data-testid="stDateInput"] [data-baseweb="input"]:hover,
+div[data-testid="stTextArea"] [data-baseweb="textarea"]:hover {
+    border-color: #2563eb !important;
+}
+div[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
+div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:focus-within,
+div[data-testid="stTextInput"] [data-baseweb="input"]:focus-within,
+div[data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
+div[data-testid="stDateInput"] [data-baseweb="input"]:focus-within,
+div[data-testid="stTextArea"] [data-baseweb="textarea"]:focus-within {
+    border: 2px solid #1d4ed8 !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.25) !important;
+}
+div[data-testid="stSelectbox"] input,
+div[data-testid="stMultiSelect"] input,
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
+div[data-testid="stDateInput"] input,
+div[data-testid="stTextArea"] textarea {
+    background: #ffffff !important;
+    color: #172554 !important;
+}
+
 </style>
 
 <div class="footer-container">
