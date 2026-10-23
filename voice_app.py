@@ -1506,9 +1506,9 @@ if page == "📄 Download Chassis Sheet":
             engine_value = cell_value(0, ["Engine", "Engine No", "Engine Number", "Engine#"])
             # Write only into existing template header cells; keep all layout/styles unchanged.
             safe_set_cell(template_ws, "A3", f"MODEL: {model_value}")
-            safe_set_cell(template_ws, "D3", f"DATE: {date_value}")
+            safe_set_cell(template_ws, "H3", f"DATE: {date_value}")
             safe_set_cell(template_ws, "A4", f"ENGINE# {engine_value}")
-            safe_set_cell(template_ws, "D4", f"CHASSIS# {chosen_chassis}")
+            safe_set_cell(template_ws, "H4", f"CHASSIS NO.: {chosen_chassis}")
 
             # The template header contains merged cells. Only write the Control Number
             # to the top-left cell I2 of the merged I2:L2 range below; never write J2.
@@ -1568,11 +1568,14 @@ if page == "📄 Download Chassis Sheet":
                 ("Fluid Check - Washer", "F40"),
             ]
             for source_name, target_cell in fluid_template_columns:
-                # User requested all Fluid Check options ticked in the center.
-                # safe_set_cell routes merged-cell coordinates to their writable anchor.
-                cell = safe_set_cell(template_ws, target_cell, "✓")
+                # Reflect the saved audit value: tick for ✓, cross for ✗, blank if no value exists.
+                # Do not automatically tick every item when the record has no fluid-check value.
+                raw_fluid_value = vehicle.get(source_name, "")
+                fluid_value = "" if pd.isna(raw_fluid_value) else str(raw_fluid_value).strip()
+                mark = "✓" if fluid_value == "✓" else ("✗" if fluid_value == "✗" else "")
+                cell = safe_set_cell(template_ws, target_cell, mark)
                 from copy import copy as _copy
-                from openpyxl.styles import Alignment, Font
+                from openpyxl.styles import Alignment
                 existing_font = _copy(cell.font)
                 existing_font.name = "Arial"
                 existing_font.sz = 14
