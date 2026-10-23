@@ -959,6 +959,28 @@ if page == "➕ Add Audit Data":
             chassis_no = st.text_input("Chassis No.", "CH-9999")
             engine_no = st.text_input("Engine No.", placeholder="Enter engine number")
 
+        st.markdown("### Fluid Check")
+        st.caption("Har item ke liye sirf tick (✓) ya cross (✗) select karein.")
+        fc1, fc2, fc3, fc4, fc5 = st.columns(5)
+        with fc1:
+            fluid_clutch = st.selectbox("CLUTCH", ["✓", "✗"], key="fluid_clutch")
+        with fc2:
+            fluid_engine = st.selectbox("E/G", ["✓", "✗"], key="fluid_engine")
+        with fc3:
+            fluid_brake = st.selectbox("BRAKE", ["✓", "✗"], key="fluid_brake")
+        with fc4:
+            fluid_llc = st.selectbox("LLC", ["✓", "✗"], key="fluid_llc")
+        with fc5:
+            fluid_washer = st.selectbox("WASHER", ["✓", "✗"], key="fluid_washer")
+
+        fluid_checks = {
+            "Fluid Check - Clutch": fluid_clutch,
+            "Fluid Check - E/G": fluid_engine,
+            "Fluid Check - Brake": fluid_brake,
+            "Fluid Check - LLC": fluid_llc,
+            "Fluid Check - Washer": fluid_washer,
+        }
+
         st.markdown("### Defect Nomenclature")
         st.caption(
             "Har entry mein Defect Type aur Defect Category alag enter karein. Department, Class, Zone, Quantity "
@@ -1058,7 +1080,23 @@ if page == "➕ Add Audit Data":
                 ]
                 total_qty = sum(x["qty"] for x in valid_entries)
                 first = valid_entries[0]
+
+                # Assign a sequential control number for each new chassis record.
+                control_col_existing = find_col(df_existing, ["Control Number", "Control No", "Control #"])
+                control_values = (
+                    df_existing[control_col_existing].dropna().astype(str).str.strip().tolist()
+                    if control_col_existing else []
+                )
+                used_numbers = []
+                for control_value in control_values:
+                    match_control = re.search(r"(\\d+)\\s*$", control_value)
+                    if match_control:
+                        used_numbers.append(int(match_control.group(1)))
+                next_control_number = max(used_numbers or [0]) + 1
+                generated_control = f"QFL4-{pd.to_datetime(audit_date):%Y%m%d}-{next_control_number:04d}"
+
                 new_entry = {
+                    "Control Number": generated_control,
                     "Date": pd.to_datetime(audit_date),
                     "Vehicle": vehicle_name,
                     "Model": model_name,
@@ -1068,6 +1106,7 @@ if page == "➕ Add Audit Data":
                     "Department": first["department"],
                     "Defect Category": first["category"],
                     "QTY": total_qty,
+                    **fluid_checks,
                 }
 
                 for cls in "ABCD":
@@ -1120,6 +1159,12 @@ if page == "➕ Add Audit Data":
                         if key in ["QTY"] or re.fullmatch(r"(CLASS|ZONE) [ABCD]", key):
                             old_value = pd.to_numeric(pd.Series([df_existing.at[target_idx, key]]), errors="coerce").fillna(0).iloc[0]
                             df_existing.at[target_idx, key] = old_value + value
+                        elif key == "Control Number":
+                            old_control = df_existing.at[target_idx, key]
+                            if pd.isna(old_control) or not str(old_control).strip():
+                                df_existing.at[target_idx, key] = value
+                        elif key in fluid_checks:
+                            df_existing.at[target_idx, key] = value
                         elif pd.isna(df_existing.at[target_idx, key]) or str(df_existing.at[target_idx, key]).strip() == "":
                             df_existing.at[target_idx, key] = value
 
@@ -1274,6 +1319,22 @@ if page == "📄 Download Chassis Sheet":
             template_ws["A4"] = f"ENGINE# {engine_value}"
             template_ws["D4"] = f"CHASSIS# {chosen_chassis}"
 
+            # Unique control number generated when this chassis audit sheet is prepared.
+            # Timestamp-based ID avoids dependence on Excel formulas or external storage.
+            control_number = "FQCM-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            template_ws["I2"] = "CONTROL NO.:"
+            template_ws["J2"] = control_number
+            template_ws["I2"]._style = copy(template_ws["D3"]._style)
+            template_ws["J2"]._style = copy(template_ws["D3"]._style)
+            template_ws["I2"].font = copy(template_ws["D3"].font)
+            template_ws["J2"].font = copy(template_ws["D3"].font)
+            template_ws["I2"].font = template_ws["I2"].font.copy(name="Arial", size=10, bold=True)
+            template_ws["J2"].font = template_ws["J2"].font.copy(name="Arial", size=10, bold=True)
+            template_ws["I2"].alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
+            template_ws["J2"].alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
+            template_ws.column_dimensions["I"].width = 14
+            template_ws.column_dimensions["J"].width = 22
+
             defect_columns = []
             for col_name in vehicle_rows.columns:
                 match = re.fullmatch(r"Defect\s*(\d+)", str(col_name).strip(), flags=re.I)
@@ -1281,29 +1342,53 @@ if page == "📄 Download Chassis Sheet":
                     defect_columns.append((int(match.group(1)), col_name))
             defect_columns.sort()
 
-            # Row 6 is the fixed classification sub-header (A, B, C, D).
-            # Defect records start at row 7 so the A/B/C/D labels remain visible.
-            # Clear only data rows; preserve all template formatting and the bottom section.
-            for r in range(7, 36):
+            # The uploaded FUSO template has defect rows 7-38, fluid labels on row 39,
+            # and the fluid check marks on row 40. Preserve the existing merged layout.
+            for r in range(7, 39):
                 template_ws.cell(r, 1).value = r - 6
-                for c in range(2, 9):
-                    template_ws.cell(r, c).value = None
+                template_ws.cell(r, 2).value = None
+                template_ws.cell(r, 7).value = None
+                # Keep the template's printed A/B/C/D checkbox labels in H:K.
+                template_ws.cell(r, 12).value = None
+
+            # Control Number is shown in the right side of the title row.
+            control_col = find_col(vehicle_rows, ["Control Number", "Control No", "Control #"])
+            control_value = vehicle.get(control_col, "") if control_col else ""
+            if pd.isna(control_value) or not str(control_value).strip():
+                date_col_for_control = find_col(vehicle_rows, ["Date"])
+                date_value = vehicle.get(date_col_for_control, datetime.now()) if date_col_for_control else datetime.now()
+                try:
+                    date_stamp = pd.to_datetime(date_value).strftime("%Y%m%d")
+                except Exception:
+                    date_stamp = datetime.now().strftime("%Y%m%d")
+                control_value = f"QFL4-{date_stamp}-{int(vehicle_rows.index[0]) + 1:04d}"
+            if "A2:L2" in [str(rng) for rng in template_ws.merged_cells.ranges]:
+                template_ws.unmerge_cells("A2:L2")
+                template_ws.merge_cells("A2:H2")
+                template_ws.merge_cells("I2:L2")
+            template_ws["I2"] = f"CONTROL NO: {str(control_value).strip()}"
+            template_ws["I2"].alignment = copy(template_ws["A2"].alignment)
+            template_ws["I2"].font = copy(template_ws["A2"].font)
+            control_font = copy(template_ws["I2"].font)
+            control_font.sz = 9
+            control_font.bold = True
+            template_ws["I2"].font = control_font
 
             filled = 0
             for n, defect_col_name in defect_columns:
                 defect_text = vehicle.get(defect_col_name)
                 if pd.isna(defect_text) or not str(defect_text).strip() or str(defect_text).strip().lower() == "nan":
                     continue
-                if filled >= 29:
+                if filled >= 32:
                     break
                 row_num = 7 + filled
-                # The Defect N value is the completed nomenclature stored by the data-entry page.
+                # Defect nomenclature is displayed in the merged B:F field.
                 template_ws.cell(row_num, 2).value = str(defect_text).strip()
 
-                dept_col = find_col(vehicle_rows, [f"Department {n}", f"Defect Category {n}", "Department", "Defect Category"])
+                dept_col = find_col(vehicle_rows, [f"Department {n}", "Department"])
                 dept_value = vehicle.get(dept_col, "") if dept_col else ""
-                if not pd.isna(dept_value):
-                    template_ws.cell(row_num, 3).value = str(dept_value).strip()
+                if not pd.isna(dept_value) and str(dept_value).strip():
+                    template_ws.cell(row_num, 7).value = str(dept_value).strip()
 
                 class_col = find_col(vehicle_rows, [f"Defect Class {n}", f"Class {n}"])
                 class_value = vehicle.get(class_col, "") if class_col else ""
@@ -1312,13 +1397,25 @@ if page == "📄 Download Chassis Sheet":
                     class_value = vehicle.get(class_col, "") if class_col else ""
                 class_value = str(class_value).strip().upper() if not pd.isna(class_value) else ""
                 if class_value in ("A", "B", "C", "D"):
-                    template_ws.cell(row_num, 4 + "ABCD".index(class_value)).value = "✓"
+                    class_cell = template_ws.cell(row_num, 8 + "ABCD".index(class_value))
+                    class_cell.value = f"☑{class_value}"
                 filled += 1
 
-            # Mark Fluid Check while deliberately leaving the coordinator signature blank.
-            template_ws["B36"] = "✓"
-            template_ws["B36"].alignment = copy(template_ws["A36"].alignment)
-            template_ws.print_area = "A1:H37"
+            # Fluid checks come from Audit Entries; only tick/cross marks are printed.
+            fluid_template_columns = [
+                ("Fluid Check - Clutch", "B40"),
+                ("Fluid Check - E/G", "C40"),
+                ("Fluid Check - Brake", "D40"),
+                ("Fluid Check - LLC", "E40"),
+                ("Fluid Check - Washer", "F40"),
+            ]
+            for source_name, target_cell in fluid_template_columns:
+                source_col = find_col(vehicle_rows, [source_name])
+                mark = vehicle.get(source_col, "") if source_col else ""
+                mark = str(mark).strip() if not pd.isna(mark) else ""
+                template_ws[target_cell] = mark if mark in ("✓", "✗", "✔", "✘", "X", "x") else ""
+
+            template_ws.print_area = "A1:L40"
             template_ws.page_setup.fitToWidth = 1
             template_ws.page_setup.fitToHeight = 1
             template_ws.sheet_properties.pageSetUpPr.fitToPage = True
@@ -1333,7 +1430,7 @@ if page == "📄 Download Chassis Sheet":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
-            st.success(f"Sheet ready: {filled} defect row(s) filled. A/B/C/D header, Fluid Check, and bottom signature area are included.")
+            st.success(f"Sheet ready: {filled} defect row(s) filled. Control Number, A/B/C/D classification, fluid tick/cross marks, and signature area are included.")
             st.caption("Coordinator signature jaan-boojh kar blank chhori gayi hai.")
         except Exception as exc:
             st.error(f"Sheet prepare nahin ho saki: {exc}")
