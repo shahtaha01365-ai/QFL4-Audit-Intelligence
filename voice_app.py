@@ -945,6 +945,7 @@ if page == "➕ Add Audit Data":
             vehicle_name = st.text_input("Vehicle Name", "FUSO Canter")
             model_name = st.text_input("Model", "FE84")
             chassis_no = st.text_input("Chassis No.", "CH-9999")
+            engine_no = st.text_input("Engine No.", placeholder="Enter engine number")
 
         st.markdown("### Defect Nomenclature")
         st.caption(
@@ -1044,6 +1045,7 @@ if page == "➕ Add Audit Data":
                     "Vehicle": vehicle_name,
                     "Model": model_name,
                     "Chassis No": str(chassis_no).strip(),
+                    "Engine No": str(engine_no).strip(),
                     "Defect Type": first["type"],
                     "Department": first["department"],
                     "Defect Category": first["department"],
@@ -1248,9 +1250,11 @@ if page == "📄 Download Chassis Sheet":
                     defect_columns.append((int(match.group(1)), col_name))
             defect_columns.sort()
 
-            # Clear existing data rows without changing formatting.
-            for r in range(6, 36):
-                template_ws.cell(r, 1).value = r - 5
+            # Row 6 is the fixed classification sub-header (A, B, C, D).
+            # Defect records start at row 7 so the A/B/C/D labels remain visible.
+            # Clear only data rows; preserve all template formatting and the bottom section.
+            for r in range(7, 36):
+                template_ws.cell(r, 1).value = r - 6
                 for c in range(2, 9):
                     template_ws.cell(r, c).value = None
 
@@ -1259,9 +1263,9 @@ if page == "📄 Download Chassis Sheet":
                 defect_text = vehicle.get(defect_col_name)
                 if pd.isna(defect_text) or not str(defect_text).strip() or str(defect_text).strip().lower() == "nan":
                     continue
-                if filled >= 30:
+                if filled >= 29:
                     break
-                row_num = 6 + filled
+                row_num = 7 + filled
                 # The Defect N value is the completed nomenclature stored by the data-entry page.
                 template_ws.cell(row_num, 2).value = str(defect_text).strip()
 
@@ -1280,9 +1284,13 @@ if page == "📄 Download Chassis Sheet":
                     template_ws.cell(row_num, 4 + "ABCD".index(class_value)).value = "✓"
                 filled += 1
 
-            # Mark the template's Fluid Check area as checked. The provided template
-            # has no individual fluid-name rows/checkboxes, so use its blank check cell.
+            # Mark Fluid Check while deliberately leaving the coordinator signature blank.
             template_ws["B36"] = "✓"
+            template_ws["B36"].alignment = copy(template_ws["A36"].alignment)
+            template_ws.print_area = "A1:H37"
+            template_ws.page_setup.fitToWidth = 1
+            template_ws.page_setup.fitToHeight = 1
+            template_ws.sheet_properties.pageSetUpPr.fitToPage = True
             output = BytesIO()
             template_wb.save(output)
             output.seek(0)
@@ -1294,8 +1302,8 @@ if page == "📄 Download Chassis Sheet":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
-            st.success(f"Sheet ready: {filled} defect row(s) filled. Original template formatting preserved.")
-            st.caption("Note: template mein individual fluid names/checkboxes nahin thay; Fluid Check area mein ✓ mark kiya gaya hai.")
+            st.success(f"Sheet ready: {filled} defect row(s) filled. A/B/C/D header, Fluid Check, and bottom signature area are included.")
+            st.caption("Coordinator signature jaan-boojh kar blank chhori gayi hai.")
         except Exception as exc:
             st.error(f"Sheet prepare nahin ho saki: {exc}")
     st.stop()
