@@ -14,6 +14,38 @@ import plotly.graph_objects as go
 import google.generativeai as genai
 from streamlit_mic_recorder import mic_recorder
 
+# Persistent black borders for all Streamlit form controls
+st.markdown(
+    """
+    <style>
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="textarea"] > div,
+    div[data-testid="stNumberInput"] [data-baseweb="input"] > div,
+    div[data-testid="stTextInput"] [data-baseweb="input"] > div,
+    div[data-testid="stTextArea"] [data-baseweb="textarea"] > div,
+    div[data-testid="stDateInput"] [data-baseweb="input"] > div {
+        border: 1.5px solid #000000 !important;
+        border-radius: 6px !important;
+        background-color: #ffffff !important;
+        box-shadow: none !important;
+    }
+    div[data-baseweb="select"] > div:hover,
+    div[data-baseweb="input"] > div:hover,
+    div[data-baseweb="textarea"] > div:hover,
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-baseweb="input"] > div:focus-within,
+    div[data-baseweb="textarea"] > div:focus-within {
+        border: 1.5px solid #000000 !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 
 # ============================================================
 # PAGE / APP CONFIG
@@ -48,6 +80,52 @@ if "show_signup" not in st.session_state:
 # ============================================================
 # GLOBAL STYLING & SECURITY HIDE (MANAGE APP / FOOTER)
 # ============================================================
+st.markdown(
+    """
+    <style>
+
+/* Strong black outlines for every Streamlit input/control */
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+div[data-baseweb="textarea"] > div,
+div[data-baseweb="datepicker"] > div,
+div[data-baseweb="timepicker"] > div,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div {
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+}
+div[data-baseweb="select"] > div:hover,
+div[data-baseweb="input"] > div:hover,
+div[data-baseweb="textarea"] > div:hover {
+    border-color: #000000 !important;
+}
+div[data-baseweb="select"] > div:focus-within,
+div[data-baseweb="input"] > div:focus-within,
+div[data-baseweb="textarea"] > div:focus-within {
+    border: 2px solid #000000 !important;
+    outline: 1px solid #000000 !important;
+    outline-offset: 1px !important;
+}
+div[data-testid="stCheckbox"] label > div:first-child,
+div[data-testid="stRadio"] label > div:first-child {
+    border: 2px solid #000000 !important;
+}
+div[data-testid="stButton"] > button,
+button[kind="primary"],
+div[data-testid="stDownloadButton"] > button {
+    border: 2px solid #000000 !important;
+}
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.markdown(
     """
 <style>
@@ -391,6 +469,85 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .top-defect-table th { text-align:left; background:#f1f5f9; color:#475569; padding:9px 10px; font-weight:900; }
 .top-defect-table td { border-top:1px solid #e5e7eb; padding:9px 10px; color:#334155; font-weight:650; }
 .rank-badge { display:inline-block; min-width:24px; padding:3px 6px; border-radius:6px; background:#eef2f7; text-align:center; font-weight:900; }
+
+
+/* HIGH VISIBILITY INPUTS GLOBALLY: Streamlit widgets may be outside stForm. */
+/* Selectboxes, text inputs, number inputs, date inputs, and textareas */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div {
+    background-color: #ffffff !important;
+    border: 2px solid #64748b !important;
+    border-radius: 9px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12) !important;
+    min-height: 44px !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:hover,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:hover,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div:hover {
+    border-color: #2563eb !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:focus-within,
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stNumberInput"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stDateInput"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div:focus-within {
+    border: 2px solid #1d4ed8 !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22) !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+div[data-testid="stMultiSelect"] div[data-baseweb="select"] span,
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
+div[data-testid="stDateInput"] input,
+div[data-testid="stTextArea"] textarea {
+    color: #172554 !important;
+}
+
+/* CLEAR, HIGH-CONTRAST FORM FIELDS (especially Add Audit Data) */
+div[data-testid="stForm"] div[data-baseweb="select"] > div,
+div[data-testid="stForm"] div[data-baseweb="input"] > div,
+div[data-testid="stForm"] div[data-baseweb="textarea"] > div,
+div[data-testid="stForm"] [data-testid="stDateInput"] div[data-baseweb="input"] > div,
+div[data-testid="stForm"] [data-testid="stNumberInput"] div[data-baseweb="input"] > div {
+    background: #ffffff !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 9px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07) !important;
+    min-height: 42px !important;
+    transition: border-color .18s ease, box-shadow .18s ease !important;
+}
+div[data-testid="stForm"] div[data-baseweb="select"] > div:hover,
+div[data-testid="stForm"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stForm"] div[data-baseweb="textarea"] > div:hover {
+    border-color: #2563eb !important;
+}
+div[data-testid="stForm"] div[data-baseweb="select"] > div:focus-within,
+div[data-testid="stForm"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stForm"] div[data-baseweb="textarea"] > div:focus-within {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.17) !important;
+}
+div[data-testid="stForm"] div[data-baseweb="select"] span,
+div[data-testid="stForm"] div[data-baseweb="input"] input,
+div[data-testid="stForm"] textarea {
+    color: #172554 !important;
+}
+div[data-testid="stForm"] label {
+    color: #1e293b !important;
+    font-weight: 650 !important;
+}
+/* Fluid check controls get a subtle green tint so they stand out clearly. */
+div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] div[data-baseweb="select"] > div {
+    border-color: #86a3bd !important;
+}
 
 </style>
 """,
@@ -1319,6 +1476,20 @@ if page == "📄 Download Chassis Sheet":
             template_wb = openpyxl.load_workbook(str(template_path))
             template_ws = template_wb[template_wb.sheetnames[0]]
 
+            # Updated FUSO templates may have different merged-cell layouts.
+            # Always write to the top-left (anchor) cell of a merged range.
+            from openpyxl.cell.cell import MergedCell
+
+            def safe_set_cell(ws, coordinate, value):
+                cell = ws[coordinate]
+                if isinstance(cell, MergedCell):
+                    for merged_range in ws.merged_cells.ranges:
+                        if coordinate in merged_range:
+                            cell = ws.cell(merged_range.min_row, merged_range.min_col)
+                            break
+                cell.value = value
+                return cell
+
             def cell_value(row, names, default=""):
                 col = find_col(vehicle_rows, names)
                 if not col:
@@ -1334,10 +1505,10 @@ if page == "📄 Download Chassis Sheet":
             date_value = cell_value(0, ["Date"])
             engine_value = cell_value(0, ["Engine", "Engine No", "Engine Number", "Engine#"])
             # Write only into existing template header cells; keep all layout/styles unchanged.
-            template_ws["A3"] = f"MODEL: {model_value}"
-            template_ws["D3"] = f"DATE: {date_value}"
-            template_ws["A4"] = f"ENGINE# {engine_value}"
-            template_ws["D4"] = f"CHASSIS# {chosen_chassis}"
+            safe_set_cell(template_ws, "A3", f"MODEL: {model_value}")
+            safe_set_cell(template_ws, "D3", f"DATE: {date_value}")
+            safe_set_cell(template_ws, "A4", f"ENGINE# {engine_value}")
+            safe_set_cell(template_ws, "D4", f"CHASSIS# {chosen_chassis}")
 
             # The template header contains merged cells. Only write the Control Number
             # to the top-left cell I2 of the merged I2:L2 range below; never write J2.
@@ -1352,34 +1523,14 @@ if page == "📄 Download Chassis Sheet":
             # The uploaded FUSO template has defect rows 7-38, fluid labels on row 39,
             # and the fluid check marks on row 40. Preserve the existing merged layout.
             for r in range(7, 39):
-                template_ws.cell(r, 1).value = r - 6
-                template_ws.cell(r, 2).value = None
-                template_ws.cell(r, 7).value = None
+                safe_set_cell(template_ws, f"A{r}", r - 6)
+                safe_set_cell(template_ws, f"B{r}", None)
+                safe_set_cell(template_ws, f"G{r}", None)
                 # Keep the template's printed A/B/C/D checkbox labels in H:K.
-                template_ws.cell(r, 12).value = None
+                safe_set_cell(template_ws, f"L{r}", None)
 
-            # Control Number is shown in the right side of the title row.
-            control_col = find_col(vehicle_rows, ["Control Number", "Control No", "Control #"])
-            control_value = vehicle.get(control_col, "") if control_col else ""
-            if pd.isna(control_value) or not str(control_value).strip():
-                date_col_for_control = find_col(vehicle_rows, ["Date"])
-                date_value = vehicle.get(date_col_for_control, datetime.now()) if date_col_for_control else datetime.now()
-                try:
-                    date_stamp = pd.to_datetime(date_value).strftime("%Y%m%d")
-                except Exception:
-                    date_stamp = datetime.now().strftime("%Y%m%d")
-                control_value = f"QFL4-{date_stamp}-{int(vehicle_rows.index[0]) + 1:04d}"
-            if "A2:L2" in [str(rng) for rng in template_ws.merged_cells.ranges]:
-                template_ws.unmerge_cells("A2:L2")
-                template_ws.merge_cells("A2:H2")
-                template_ws.merge_cells("I2:L2")
-            template_ws["I2"] = f"CONTROL NO: {str(control_value).strip()}"
-            template_ws["I2"].alignment = copy(template_ws["A2"].alignment)
-            template_ws["I2"].font = copy(template_ws["A2"].font)
-            control_font = copy(template_ws["I2"].font)
-            control_font.sz = 9
-            control_font.bold = True
-            template_ws["I2"].font = control_font
+            # IMPORTANT: Control Number is permanent in the original template.
+            # Do not generate, overwrite, move, restyle, unmerge, or re-merge its cells.
 
             filled = 0
             for n, defect_col_name in defect_columns:
@@ -1390,12 +1541,12 @@ if page == "📄 Download Chassis Sheet":
                     break
                 row_num = 7 + filled
                 # Defect nomenclature is displayed in the merged B:F field.
-                template_ws.cell(row_num, 2).value = str(defect_text).strip()
+                safe_set_cell(template_ws, f"B{row_num}", str(defect_text).strip())
 
                 dept_col = find_col(vehicle_rows, [f"Department {n}", "Department"])
                 dept_value = vehicle.get(dept_col, "") if dept_col else ""
                 if not pd.isna(dept_value) and str(dept_value).strip():
-                    template_ws.cell(row_num, 7).value = str(dept_value).strip()
+                    safe_set_cell(template_ws, f"G{row_num}", str(dept_value).strip())
 
                 class_col = find_col(vehicle_rows, [f"Defect Class {n}", f"Class {n}"])
                 class_value = vehicle.get(class_col, "") if class_col else ""
@@ -1405,7 +1556,7 @@ if page == "📄 Download Chassis Sheet":
                 class_value = str(class_value).strip().upper() if not pd.isna(class_value) else ""
                 if class_value in ("A", "B", "C", "D"):
                     class_cell = template_ws.cell(row_num, 8 + "ABCD".index(class_value))
-                    class_cell.value = f"☑{class_value}"
+                    safe_set_cell(template_ws, class_cell.coordinate, f"☑{class_value}")
                 filled += 1
 
             # Fluid checks come from Audit Entries; only tick/cross marks are printed.
@@ -1417,10 +1568,17 @@ if page == "📄 Download Chassis Sheet":
                 ("Fluid Check - Washer", "F40"),
             ]
             for source_name, target_cell in fluid_template_columns:
-                source_col = find_col(vehicle_rows, [source_name])
-                mark = vehicle.get(source_col, "") if source_col else ""
-                mark = str(mark).strip() if not pd.isna(mark) else ""
-                template_ws[target_cell] = mark if mark in ("✓", "✗", "✔", "✘", "X", "x") else ""
+                # User requested all Fluid Check options ticked in the center.
+                # safe_set_cell routes merged-cell coordinates to their writable anchor.
+                cell = safe_set_cell(template_ws, target_cell, "✓")
+                from copy import copy as _copy
+                from openpyxl.styles import Alignment, Font
+                existing_font = _copy(cell.font)
+                existing_font.name = "Arial"
+                existing_font.sz = 14
+                existing_font.bold = True
+                cell.font = existing_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
             template_ws.print_area = "A1:L40"
             template_ws.page_setup.fitToWidth = 1
