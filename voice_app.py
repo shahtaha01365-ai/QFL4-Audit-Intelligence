@@ -1,3 +1,38 @@
+
+# Persistent black borders for all Streamlit form controls
+st.markdown(
+    """
+    <style>
+
+/* Persistent black borders on ALL controls, whether focused or not */
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+div[data-baseweb="textarea"] > div,
+div[data-testid="stNumberInput"] [data-baseweb="input"] > div,
+div[data-testid="stTextInput"] [data-baseweb="input"] > div,
+div[data-testid="stTextArea"] [data-baseweb="textarea"] > div,
+div[data-testid="stDateInput"] [data-baseweb="input"] > div {
+    border: 1.5px solid #000000 !important;
+    border-radius: 6px !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+}
+div[data-baseweb="select"] > div:hover,
+div[data-baseweb="input"] > div:hover,
+div[data-baseweb="textarea"] > div:hover,
+div[data-baseweb="select"] > div:focus-within,
+div[data-baseweb="input"] > div:focus-within,
+div[data-baseweb="textarea"] > div:focus-within {
+    border: 1.5px solid #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 import os
 import re
 import html
