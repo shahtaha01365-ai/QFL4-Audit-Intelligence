@@ -922,78 +922,229 @@ if page == "➕ Add Audit Data":
     if st.session_state.get("role") != "admin":
         st.error("Access Denied: Yeh page sirf Administrator ke liye hai.")
         st.stop()
-        
+
     page_title("Admin Data Entry", "System mein naya audit record darj karein.")
-    
+
+    # Keep the defect rows horizontal and let the admin choose how many
+    # nomenclature entries belong to this chassis.
+    defect_rows_count = st.number_input(
+        "Number of Defects for this Chassis",
+        min_value=1,
+        max_value=30,
+        value=1,
+        step=1,
+        key="nomenclature_rows_count",
+    )
+
     with st.form("add_data_form"):
-        st.markdown("### Naya Audit Record Bharein")
-        
+        st.markdown("### Vehicle / Audit Details")
         c1, c2 = st.columns(2)
         with c1:
             audit_date = st.date_input("Date", datetime.now())
             vehicle_name = st.text_input("Vehicle Name", "FUSO Canter")
             model_name = st.text_input("Model", "FE84")
             chassis_no = st.text_input("Chassis No.", "CH-9999")
-
-            st.markdown("### Defect Nomenclature")
-            vehicle_location = st.selectbox(
-                "Vehicle Location", ["RH", "LH", "FR", "RR"], key="nomenclature_vehicle_location"
-            )
-            area_choice = st.selectbox(
-                "Area", ["Side", "Upper Side", "Lower Side"], key="nomenclature_area"
-            )
-            part_name = st.text_input("Part Name", placeholder="Enter part name", key="nomenclature_part_name")
-            part_location = st.selectbox(
-                "Part Location", ["RH", "LH", "FR", "RR"], key="nomenclature_part_location"
-            )
-            nomenclature_defect = st.text_input(
-                "Defect", placeholder="Enter defect", key="nomenclature_defect"
-            )
-            
         with c2:
             defect_type = st.text_input("Defect Type", "Paint Scratch")
             category = st.text_input("Defect Category", "Body Shop")
             class_choice = st.selectbox("Defect Class", ["A", "B", "C", "D"])
             zone_choice = st.selectbox("Zone", ["A", "B", "C", "D"])
-            defect_qty = st.number_input("Defect Quantity (QTY)", min_value=1, value=1)
-            
-        submitted = st.form_submit_button("Save Record to Excel", type="primary", use_container_width=True)
-        
+            defect_qty = st.number_input(
+                "Total Defect Quantity (QTY)",
+                min_value=1,
+                value=int(defect_rows_count),
+                step=1,
+                key="nomenclature_total_qty",
+            )
+
+        st.markdown("### Defect Nomenclature")
+        st.caption(
+            "Har defect ki complete nomenclature ek horizontal row mein bharein. "
+            "Save karne par tamam nomenclatures isi chassis ki row mein Defect 1, Defect 2, ... columns mein save hongi."
+        )
+
+        nomenclature_entries = []
+        for idx in range(int(defect_rows_count)):
+            st.markdown(f"**Defect Entry {idx + 1}**")
+            v1, v2, v3, v4, v5 = st.columns([1, 1.25, 1.4, 1, 1.6])
+            with v1:
+                vloc = st.selectbox(
+                    "Vehicle Location",
+                    ["RH", "LH", "FR", "RR"],
+                    key=f"nomenclature_vloc_{idx}",
+                )
+            with v2:
+                area = st.selectbox(
+                    "Area",
+                    ["Side", "Upper Side", "Lower Side"],
+                    key=f"nomenclature_area_{idx}",
+                )
+            with v3:
+                part = st.text_input(
+                    "Part Name",
+                    placeholder="Part name",
+                    key=f"nomenclature_part_{idx}",
+                )
+            with v4:
+                ploc = st.selectbox(
+                    "Part Location",
+                    ["RH", "LH", "FR", "RR"],
+                    key=f"nomenclature_ploc_{idx}",
+                )
+            with v5:
+                defect = st.text_input(
+                    "Defect",
+                    placeholder="Defect description",
+                    key=f"nomenclature_defect_{idx}",
+                )
+            nomenclature_entries.append((vloc, area, part.strip(), ploc, defect.strip()))
+
+        submitted = st.form_submit_button(
+            "Save All Defects to Excel",
+            type="primary",
+            use_container_width=True,
+        )
+
         if submitted:
             try:
+                if not str(chassis_no).strip():
+                    st.error("Chassis No. zaroor enter karein.")
+                    st.stop()
+
                 df_existing = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
-                
+                df_existing.columns = (
+                    df_existing.columns.astype(str).str.strip()
+                    .str.replace("\\n", " ", regex=False)
+                    .str.replace(r"\\s+", " ", regex=True)
+                )
+
+                # Build each complete nomenclature string.
+                nomenclatures = []
+                for vloc, area, part, ploc, defect in nomenclature_entries:
+                    if not part and not defect:
+                        continue
+                    if not part or not defect:
+                        st.error("Har defect entry mein Part Name aur Defect dono bharna zaroori hai.")
+                        st.stop()
+                    nomenclatures.append(
+                        f"{vloc} | {area} | {part} | {ploc} | {defect}"
+                    )
+
+                if not nomenclatures:
+                    st.error("Kam az kam ek complete Defect Nomenclature enter karein.")
+                    st.stop()
+
                 new_entry = {
                     "Date": pd.to_datetime(audit_date),
                     "Vehicle": vehicle_name,
                     "Model": model_name,
-                    "Chassis No": chassis_no,
+                    "Chassis No": str(chassis_no).strip(),
                     "Defect Type": defect_type,
                     "Defect Category": category,
-                    "Vehicle Location": vehicle_location,
-                    "Area": area_choice,
-                    "Part Name": part_name,
-                    "Part Location": part_location,
-                    "Nomenclature Defect": nomenclature_defect,
-                    "QTY": defect_qty
+                    "QTY": int(defect_qty),
                 }
-                
+
+                # Keep existing class/zone schema intact.
                 class_col_name = f"CLASS {class_choice}"
                 if class_col_name in df_existing.columns:
-                    new_entry[class_col_name] = defect_qty
-                    
+                    new_entry[class_col_name] = int(defect_qty)
                 zone_col_name = f"ZONE {zone_choice}"
                 if zone_col_name in df_existing.columns:
-                    new_entry[zone_col_name] = defect_qty
+                    new_entry[zone_col_name] = int(defect_qty)
 
-                df_updated = pd.concat([df_existing, pd.DataFrame([new_entry])], ignore_index=True)
+                # Ensure Defect 1...Defect N columns exist for all submitted
+                # nomenclatures while preserving the workbook's other columns.
+                existing_defect_cols = [
+                    c for c in df_existing.columns
+                    if re.fullmatch(r"Defect\\s*\\d+", str(c).strip(), flags=re.IGNORECASE)
+                ]
+                highest_existing = max(
+                    [int(re.search(r"\\d+", str(c)).group()) for c in existing_defect_cols] or [0]
+                )
+                required_defect_count = max(highest_existing, len(nomenclatures))
+                for n in range(1, required_defect_count + 1):
+                    col = f"Defect {n}"
+                    if col not in df_existing.columns:
+                        df_existing[col] = pd.NA
+
+                chassis_col = find_col(df_existing, ["Chassis No", "Chassis", "Chassis Number"])
+                chassis_key = str(chassis_no).strip().casefold()
+                matching_rows = []
+                if chassis_col:
+                    matching_rows = df_existing.index[
+                        df_existing[chassis_col].fillna("").astype(str).str.strip().str.casefold() == chassis_key
+                    ].tolist()
+
+                if matching_rows:
+                    # Consolidate any older duplicate chassis rows into the
+                    # first matching row, then append new nomenclatures to its
+                    # first available Defect N columns.
+                    target_idx = matching_rows[0]
+                    if len(matching_rows) > 1:
+                        duplicate_rows = df_existing.loc[matching_rows[1:]]
+                        for col in df_existing.columns:
+                            if re.fullmatch(r"Defect\\s*\\d+", str(col).strip(), flags=re.IGNORECASE):
+                                current = str(df_existing.at[target_idx, col]).strip() if pd.notna(df_existing.at[target_idx, col]) else ""
+                                for _, duplicate_row in duplicate_rows.iterrows():
+                                    value = duplicate_row.get(col, pd.NA)
+                                    if pd.notna(value) and str(value).strip() and str(value).strip().lower() != "nan":
+                                        current = " | ".join(x for x in [current, str(value).strip()] if x)
+                                df_existing.at[target_idx, col] = current if current else pd.NA
+                        df_existing = df_existing.drop(index=matching_rows[1:]).reset_index(drop=True)
+                        target_idx = df_existing.index[
+                            df_existing[chassis_col].fillna("").astype(str).str.strip().str.casefold() == chassis_key
+                        ][0]
+
+                    for key, value in new_entry.items():
+                        if key not in df_existing.columns:
+                            df_existing[key] = pd.NA
+                        if key in ["QTY", class_col_name, zone_col_name]:
+                            old_value = pd.to_numeric(pd.Series([df_existing.at[target_idx, key]]), errors="coerce").fillna(0).iloc[0]
+                            df_existing.at[target_idx, key] = old_value + value
+                        elif key in ["Date", "Vehicle", "Model", "Defect Type", "Defect Category"]:
+                            if pd.isna(df_existing.at[target_idx, key]) or str(df_existing.at[target_idx, key]).strip() == "":
+                                df_existing.at[target_idx, key] = value
+
+                    for nomenclature in nomenclatures:
+                        placed = False
+                        for n in range(1, required_defect_count + 1):
+                            col = f"Defect {n}"
+                            val = df_existing.at[target_idx, col]
+                            if pd.isna(val) or not str(val).strip() or str(val).strip().lower() == "nan":
+                                df_existing.at[target_idx, col] = nomenclature
+                                placed = True
+                                break
+                        if not placed:
+                            new_col = f"Defect {required_defect_count + 1}"
+                            required_defect_count += 1
+                            df_existing[new_col] = pd.NA
+                            df_existing.at[target_idx, new_col] = nomenclature
+                else:
+                    for idx, nomenclature in enumerate(nomenclatures, start=1):
+                        new_entry[f"Defect {idx}"] = nomenclature
+                    for col in df_existing.columns:
+                        if col not in new_entry:
+                            new_entry[col] = pd.NA
+                    for col in new_entry:
+                        if col not in df_existing.columns:
+                            df_existing[col] = pd.NA
+                    df_existing = pd.concat(
+                        [df_existing, pd.DataFrame([{col: new_entry.get(col, pd.NA) for col in df_existing.columns}])],
+                        ignore_index=True,
+                    )
+
+                # Persist a single row per chassis for new submissions.
+                df_updated = df_existing
                 df_updated.to_excel(EXCEL_FILE, sheet_name=SHEET_NAME, index=False)
-                
-                st.success("Naya audit record kamyabi ke sath Excel sheet mein save ho gaya hai! 🎉")
+                st.cache_data.clear()
+                st.success(
+                    f"{len(nomenclatures)} defect nomenclature(s) save ho gayi. "
+                    f"Chassis {str(chassis_no).strip()} ki ek hi row maintain ki gayi hai."
+                )
                 st.rerun()
             except Exception as e:
                 st.error(f"Data save karne mein error aya: {e}")
-                
+
     st.stop()
 
 
