@@ -392,6 +392,45 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) fi
 .top-defect-table td { border-top:1px solid #e5e7eb; padding:9px 10px; color:#334155; font-weight:650; }
 .rank-badge { display:inline-block; min-width:24px; padding:3px 6px; border-radius:6px; background:#eef2f7; text-align:center; font-weight:900; }
 
+
+/* CLEAR, HIGH-CONTRAST FORM FIELDS (especially Add Audit Data) */
+div[data-testid="stForm"] div[data-baseweb="select"] > div,
+div[data-testid="stForm"] div[data-baseweb="input"] > div,
+div[data-testid="stForm"] div[data-baseweb="textarea"] > div,
+div[data-testid="stForm"] [data-testid="stDateInput"] div[data-baseweb="input"] > div,
+div[data-testid="stForm"] [data-testid="stNumberInput"] div[data-baseweb="input"] > div {
+    background: #ffffff !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 9px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07) !important;
+    min-height: 42px !important;
+    transition: border-color .18s ease, box-shadow .18s ease !important;
+}
+div[data-testid="stForm"] div[data-baseweb="select"] > div:hover,
+div[data-testid="stForm"] div[data-baseweb="input"] > div:hover,
+div[data-testid="stForm"] div[data-baseweb="textarea"] > div:hover {
+    border-color: #2563eb !important;
+}
+div[data-testid="stForm"] div[data-baseweb="select"] > div:focus-within,
+div[data-testid="stForm"] div[data-baseweb="input"] > div:focus-within,
+div[data-testid="stForm"] div[data-baseweb="textarea"] > div:focus-within {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.17) !important;
+}
+div[data-testid="stForm"] div[data-baseweb="select"] span,
+div[data-testid="stForm"] div[data-baseweb="input"] input,
+div[data-testid="stForm"] textarea {
+    color: #172554 !important;
+}
+div[data-testid="stForm"] label {
+    color: #1e293b !important;
+    font-weight: 650 !important;
+}
+/* Fluid check controls get a subtle green tint so they stand out clearly. */
+div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] div[data-baseweb="select"] > div {
+    border-color: #86a3bd !important;
+}
+
 </style>
 """,
     unsafe_allow_html=True,
