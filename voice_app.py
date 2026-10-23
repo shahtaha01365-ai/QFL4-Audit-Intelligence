@@ -1438,6 +1438,46 @@ if selected_chassis != "All" and chassis_col:
 
 
 # ============================================================
+# SHARED PARETO SUMMARY HELPER (GLOBAL SCOPE)
+# ============================================================
+def build_pareto_summary(data, label_col):
+    """Count each numbered defect entry independently; fallback to base columns for legacy rows."""
+    if not label_col or not qty_col:
+        return None
+    numbered = []
+    for c in data.columns:
+        m = re.fullmatch(re.escape(label_col) + r"\s+(\d+)", str(c).strip(), flags=re.IGNORECASE)
+        if m:
+            numbered.append((int(m.group(1)), c))
+    numbered.sort()
+    rows = []
+    if numbered:
+        for _, row in data.iterrows():
+            found_numbered = False
+            for n, c in numbered:
+                label = str(row.get(c, "") if pd.notna(row.get(c, pd.NA)) else "").strip()
+                qcol = next((x for x in data.columns if str(x).strip().lower() == f"qty {n}".lower()), None)
+                q = pd.to_numeric(pd.Series([row.get(qcol, 0) if qcol else 0]), errors="coerce").fillna(0).iloc[0]
+                if label and label.lower() not in ("nan", "none"):
+                    rows.append({label_col: label, qty_col: float(q)})
+                    found_numbered = True
+            if not found_numbered:
+                label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
+                q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
+                if label and label.lower() not in ("nan", "none"):
+                    rows.append({label_col: label, qty_col: float(q)})
+    else:
+        for _, row in data.iterrows():
+            label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
+            q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
+            if label and label.lower() not in ("nan", "none"):
+                rows.append({label_col: label, qty_col: float(q)})
+    if not rows:
+        return pd.DataFrame(columns=[label_col, qty_col])
+    out = pd.DataFrame(rows).groupby(label_col, as_index=False)[qty_col].sum()
+    return out.sort_values(qty_col, ascending=False).reset_index(drop=True)
+
+# ============================================================
 # EXECUTIVE OVERVIEW DASHBOARD
 # ============================================================
 if page == "🏠 Overview":
@@ -1466,43 +1506,6 @@ if page == "🏠 Overview":
     for col, (label, value, cls) in zip(strip, strip_data):
         with col:
             st.markdown(f'<div class="mini-kpi"><div class="mini-kpi-label">{label}</div><div class="mini-kpi-value {cls}">{value}</div></div>', unsafe_allow_html=True)
-
-    def build_pareto_summary(data, label_col):
-        """Count each numbered defect entry independently; fallback to base columns for legacy rows."""
-        if not label_col or not qty_col:
-            return None
-        numbered = []
-        for c in data.columns:
-            m = re.fullmatch(re.escape(label_col) + r"\s+(\d+)", str(c).strip(), flags=re.IGNORECASE)
-            if m:
-                numbered.append((int(m.group(1)), c))
-        numbered.sort()
-        rows = []
-        if numbered:
-            for _, row in data.iterrows():
-                found_numbered = False
-                for n, c in numbered:
-                    label = str(row.get(c, "") if pd.notna(row.get(c, pd.NA)) else "").strip()
-                    qcol = next((x for x in data.columns if str(x).strip().lower() == f"qty {n}".lower()), None)
-                    q = pd.to_numeric(pd.Series([row.get(qcol, 0) if qcol else 0]), errors="coerce").fillna(0).iloc[0]
-                    if label and label.lower() not in ("nan", "none"):
-                        rows.append({label_col: label, qty_col: float(q)})
-                        found_numbered = True
-                if not found_numbered:
-                    label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
-                    q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
-                    if label and label.lower() not in ("nan", "none"):
-                        rows.append({label_col: label, qty_col: float(q)})
-        else:
-            for _, row in data.iterrows():
-                label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
-                q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
-                if label and label.lower() not in ("nan", "none"):
-                    rows.append({label_col: label, qty_col: float(q)})
-        if not rows:
-            return pd.DataFrame(columns=[label_col, qty_col])
-        out = pd.DataFrame(rows).groupby(label_col, as_index=False)[qty_col].sum()
-        return out.sort_values(qty_col, ascending=False).reset_index(drop=True)
 
     overview_pareto = build_pareto_summary(filtered, defect_col)
 
