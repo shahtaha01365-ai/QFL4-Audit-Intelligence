@@ -2,6 +2,7 @@ import os
 import re
 import html
 import json
+from pathlib import Path
 from datetime import datetime
 import pandas as pd
 import streamlit as st
@@ -24,9 +25,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-EXCEL_FILE = "audit_data.xlsx"
+APP_DIR = Path(__file__).resolve().parent
+EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")
 SHEET_NAME = "Sheet1"
-USERS_FILE = "users.json"
+USERS_FILE = str(APP_DIR / "users.json")
+TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
+TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
 
 AI_MODEL = "gemini-3.6-flash"
 
@@ -1202,9 +1206,21 @@ if page == "📄 Download Chassis Sheet":
     vehicle_rows = df[df[chassis_col].fillna("").astype(str).str.strip() == chosen_chassis]
     vehicle = vehicle_rows.iloc[0]
 
-    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx")
-    if not os.path.exists(template_path):
-        st.error("Template file app ke folder mein nahin mili. 'QFL 4-Product Audit Sheet (Fuso) Revised.xlsx' ko app ke saath rakhein.")
+    # Resolve the template relative to this Python file, not the current working directory.
+    # This is reliable on Streamlit Community Cloud and local runs.
+    template_path = APP_DIR / TEMPLATE_FILENAME
+    if not template_path.is_file():
+        nearby_xlsx = sorted(p.name for p in APP_DIR.glob("*.xlsx"))
+        st.error(
+            f"Audit template file nahi mili. Expected file: {TEMPLATE_FILENAME} "
+            f"\nApp folder: {APP_DIR}"
+        )
+        if nearby_xlsx:
+            st.caption("App folder mein milne wali .xlsx files: " + ", ".join(nearby_xlsx))
+        st.info(
+            "GitHub repository ke usi root/folder mein template upload karein jahan "
+            "Streamlit ki main Python file hai. Filename bilkul exact hona chahiye."
+        )
         st.stop()
 
     st.write("**Vehicle details preview**")
@@ -1220,7 +1236,7 @@ if page == "📄 Download Chassis Sheet":
             import openpyxl
             from copy import copy
 
-            template_wb = openpyxl.load_workbook(template_path)
+            template_wb = openpyxl.load_workbook(str(template_path))
             template_ws = template_wb[template_wb.sheetnames[0]]
 
             def cell_value(row, names, default=""):
