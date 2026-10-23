@@ -992,15 +992,35 @@ if page == "➕ Add Audit Data":
             st.markdown(f"**Defect Entry {idx + 1}**")
             a1, a2 = st.columns(2)
             with a1:
-                entry_type = st.text_input("Defect Type", "Paint Scratch" if idx == 0 else "",
-                                           key=f"entry_type_{idx}")
+                entry_type = st.selectbox(
+                    "Defect Type",
+                    ["Safety", "Functional", "Major Aesthetics", "Minor Aesthetics"],
+                    key=f"entry_type_{idx}",
+                )
             with a2:
-                entry_category = st.text_input("Defect Category", "",
-                                               key=f"entry_category_{idx}")
+                entry_category = st.selectbox(
+                    "Defect Category",
+                    [
+                        "Over Tightening", "Looseness", "Scratch", "Rust",
+                        "Improperly installed", "Weld Spot Burr", "Weld Spot Miss",
+                        "Sag", "Run", "Dent", "Bump", "Spot Miss", "Seepage",
+                        "Leakage", "Crater", "Thin Paint", "Part Miss",
+                        "Harness Routing Wrong", "Wrong Part", "Deformation",
+                        "Gap NG", "Indicator not work", "Wrinkles",
+                        "Torque Mark Miss", "Other",
+                    ],
+                    key=f"entry_category_{idx}",
+                )
             a3, a4, a5 = st.columns([1.2, 1.2, 1])
             with a3:
-                department = st.text_input("Department", "Body Shop" if idx == 0 else "",
-                                           key=f"entry_department_{idx}")
+                department = st.selectbox(
+                    "Department",
+                    [
+                        "Weld Shop", "Paint Shop", "Assembly Shop", "Tester Line",
+                        "Final Confirmation", "QA Receiving", "CKD",
+                    ],
+                    key=f"entry_department_{idx}",
+                )
             with a4:
                 entry_qty = st.number_input("Total Defect Quantity (QTY)", min_value=1, value=1,
                                             step=1, key=f"entry_qty_{idx}")
