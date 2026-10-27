@@ -937,6 +937,7 @@ with st.sidebar:
 
     if st.session_state.get("role") == "admin":
         nav_pages.append("➕ Add Audit Data")
+        nav_pages.append("🗑️ Delete Audit Entry")
         nav_pages.append("👥 Manage Users")
 
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
@@ -1086,6 +1087,65 @@ if page == "👥 Manage Users":
 
 
 # ============================================================
+# ADMIN PAGE: DELETE AUDIT ENTRY
+# ============================================================
+if page == "🗑️ Delete Audit Entry":
+    if st.session_state.get("role") != "admin":
+        st.error("Access Denied: Yeh page sirf Administrator ke liye hai.")
+        st.stop()
+
+    page_title("Delete Audit Entry", "Select a chassis record to permanently delete it.")
+    try:
+        df_delete = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+        chassis_col_delete = find_col(df_delete, ["Chassis No", "Chassis", "Chassis Number"])
+        if not chassis_col_delete:
+            st.error("Excel sheet mein Chassis No. column nahi mila.")
+        else:
+            chassis_values = (
+                df_delete[chassis_col_delete]
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+            chassis_values = chassis_values[chassis_values != ""]
+            unique_chassis = sorted(chassis_values.unique().tolist())
+
+            if not unique_chassis:
+                st.info("Delete karne ke liye koi chassis entry mojood nahi.")
+            else:
+                selected_chassis = st.selectbox("Select Chassis Number", unique_chassis)
+                matching_delete_rows = df_delete.index[
+                    df_delete[chassis_col_delete].fillna("").astype(str).str.strip().str.casefold()
+                    == selected_chassis.casefold()
+                ].tolist()
+                st.warning(
+                    f"Chassis **{selected_chassis}** ki {len(matching_delete_rows)} row(s) "
+                    "aur unke tamam defect details delete ho jayenge."
+                )
+                confirm_delete = st.checkbox(
+                    "I understand this action cannot be undone.",
+                    key="confirm_delete_chassis_entry",
+                )
+                if st.button(
+                    "Delete Selected Chassis Entry",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=not confirm_delete,
+                ):
+                    df_delete = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
+                    with pd.ExcelWriter(
+                        EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="replace"
+                    ) as writer:
+                        df_delete.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+                    st.cache_data.clear()
+                    st.success(f"Chassis {selected_chassis} aur uski tamam defect entries delete ho gayi hain.")
+                    st.rerun()
+    except Exception as exc:
+        st.error(f"Delete karte waqt error aya: {exc}")
+    st.stop()
+
+
+# ============================================================
 # ADMIN PAGE: ADD AUDIT DATA
 # ============================================================
 if page == "➕ Add Audit Data":
@@ -1094,6 +1154,31 @@ if page == "➕ Add Audit Data":
         st.stop()
 
     page_title("Admin Data Entry", "System mein naya audit record darj karein.")
+
+    # Keep chassis input OUTSIDE the Streamlit form so duplicate validation
+    # runs immediately while the admin types, rather than only after Save.
+    chassis_no = st.text_input(
+        "Chassis No.",
+        value="CH-9999",
+        key="chassis_no_live",
+        help="Duplicate chassis number type karte hi yahin warning show hogi."
+    )
+    chassis_duplicate = False
+    chassis_check_message = ""
+    if str(chassis_no).strip():
+        try:
+            _df_chassis_check = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+            _chassis_col_check = find_col(_df_chassis_check, ["Chassis No", "Chassis", "Chassis Number"])
+            if _chassis_col_check:
+                _entered_key = str(chassis_no).strip().casefold()
+                chassis_duplicate = _df_chassis_check[_chassis_col_check].fillna("").astype(str).str.strip().str.casefold().eq(_entered_key).any()
+                if chassis_duplicate:
+                    chassis_check_message = "This chassis number is already entered. Please check the chassis number and enter a new one."
+                    st.error(chassis_check_message)
+                else:
+                    st.success("Chassis number available.")
+        except Exception as _chassis_check_error:
+            st.warning(f"Chassis duplicate check unavailable: {_chassis_check_error}")
 
     # Keep the defect rows horizontal and let the admin choose how many
     # nomenclature entries belong to this chassis.
@@ -1225,6 +1310,9 @@ if page == "➕ Add Audit Data":
                 if not str(chassis_no).strip():
                     st.error("Chassis No. zaroor enter karein.")
                     st.stop()
+                if chassis_duplicate:
+                    st.error("This chassis number is already entered. Please check the chassis number and enter a new one.")
+                    st.stop()
 
                 df_existing = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
                 df_existing.columns = (
@@ -1327,6 +1415,10 @@ if page == "➕ Add Audit Data":
                     matching_rows = df_existing.index[
                         df_existing[chassis_col].fillna("").astype(str).str.strip().str.casefold() == chassis_key
                     ].tolist()
+
+                if matching_rows:
+                    st.error("This chassis number is already entered. Please check the chassis number and enter a new one.")
+                    st.stop()
 
                 if matching_rows:
                     target_idx = matching_rows[0]
