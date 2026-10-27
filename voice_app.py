@@ -6,8 +6,6 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
 import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
@@ -62,7 +60,6 @@ st.set_page_config(
 APP_DIR = Path(__file__).resolve().parent
 EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")
 SHEET_NAME = "Audit Entries"
-SPREADSHEET_ID = "1ADGSkAzFDxvj2GPQ0P8mJb1_u3BVGVYdBFREAy0rdmM"
 USERS_FILE = str(APP_DIR / "users.json")
 TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
 TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
@@ -778,58 +775,14 @@ def calculate_dpu(d):
     tot_def = total_defects(d)
     return round(tot_def / v_count, 2)
 
-def _google_worksheet():
-    """Connect to the private Google Sheet using Streamlit Secrets."""
-    if "gcp_service_account" not in st.secrets:
-        raise RuntimeError("Missing [gcp_service_account] in Streamlit Secrets.")
-    info = dict(st.secrets["gcp_service_account"])
-    # TOML may contain escaped newlines; normalize to PEM line breaks.
-    if info.get("private_key"):
-        info["private_key"] = str(info["private_key"]).replace("\\n", "\n")
-    scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    credentials = Credentials.from_service_account_info(info, scopes=scopes)
-    client = gspread.authorize(credentials)
-    spreadsheet = client.open_by_key(SPREADSHEET_ID)
-    try:
-        return spreadsheet.worksheet(SHEET_NAME)
-    except gspread.WorksheetNotFound:
-        return spreadsheet.add_worksheet(title=SHEET_NAME, rows=1000, cols=80)
-
+@st.cache_data(ttl=30)
 def load_excel():
-    """Load live audit data from Google Sheets (the persistent source of truth)."""
-    ws = _google_worksheet()
-    values = ws.get_all_values()
-    if not values:
-        raise RuntimeError(f"Google Sheet tab '{SHEET_NAME}' is empty. Add the header row and existing audit data first.")
-    headers = [str(x).strip() for x in values[0]]
-    rows = values[1:]
-    d = pd.DataFrame(rows, columns=headers)
-    # Preserve blank cells as missing values and convert numeric columns where possible.
-    d = d.replace({"": pd.NA})
-    for col in d.columns:
-        if str(col).strip().lower() in {"qty", "total", "class a", "class b", "class c", "class d", "zone a", "zone b", "zone c", "zone d"} or str(col).strip().lower().startswith(("qty ", "defect qty", "total ")):
-            d[col] = pd.to_numeric(d[col], errors="ignore")
+    d = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
     d.columns = d.columns.astype(str).str.strip().str.replace("\n", " ", regex=False).str.replace(r"\s+", " ", regex=True)
     date_col = next((x for x in d.columns if str(x).strip().lower() == "date"), None)
     if date_col:
         d[date_col] = pd.to_datetime(d[date_col], errors="coerce")
     return d
-
-def save_audit_dataframe(d):
-    """Replace the audit worksheet with a dataframe after an explicit user action."""
-    ws = _google_worksheet()
-    frame = d.copy().where(pd.notna(d), "")
-    # Google Sheets expects serializable strings/numbers; format dates consistently.
-    for col in frame.columns:
-        if pd.api.types.is_datetime64_any_dtype(frame[col]):
-            frame[col] = frame[col].dt.strftime("%Y-%m-%d").fillna("")
-    rows = [frame.columns.astype(str).tolist()]
-    for row in frame.itertuples(index=False, name=None):
-        rows.append(["" if pd.isna(v) else (v.isoformat() if hasattr(v, "isoformat") else v) for v in row])
-    ws.clear()
-    if rows:
-        ws.update(rows, range_name="A1", value_input_option="USER_ENTERED")
-    st.cache_data.clear()
 
 def page_title(title, description):
     st.markdown(
@@ -938,13 +891,20 @@ if not st.session_state.logged_in:
 
 
 # ============================================================
-# LOAD LIVE DATA FROM GOOGLE SHEETS
+# REQUIRED FILE CHECK
+# ============================================================
+if not os.path.exists(EXCEL_FILE):
+    st.error(f"{EXCEL_FILE} not found. Upload it beside your app file.")
+    st.stop()
+
+
+# ============================================================
+# LOAD DATA
 # ============================================================
 try:
     df = load_excel()
 except Exception as exc:
-    st.error(f"Google Sheets se audit data load nahi ho saka: {exc}")
-    st.info("Check karein: Sheets API enabled ho, service-account email ko spreadsheet par Editor access ho, aur Streamlit Secrets mein [gcp_service_account] ki values valid hon.")
+    st.error(f"Could not read {EXCEL_FILE}: {exc}")
     st.stop()
 
 
@@ -990,12 +950,12 @@ with st.sidebar:
         uploaded_excel = st.file_uploader("Upload New Excel Sheet", type=["xlsx", "xls"], key="sidebar_excel_upload")
         if uploaded_excel is not None:
             try:
-                imported = pd.read_excel(uploaded_excel, sheet_name=SHEET_NAME)
-                save_audit_dataframe(imported)
-                st.success("Excel data Google Sheets mein import ho gaya! 🎉")
+                with open(EXCEL_FILE, "wb") as f:
+                    f.write(uploaded_excel.getbuffer())
+                st.success("Excel sheet updated successfully! 🎉")
                 st.rerun()
             except Exception as e:
-                st.error(f"Google Sheets mein import error: {e}")
+                st.error(f"Error saving file: {e}")
 
     st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
     ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
@@ -1006,7 +966,7 @@ with st.sidebar:
         <div class="sidebar-note">
             User: {html.escape(st.session_state.get('user_email', ''))}<br>
             Role: {html.escape(st.session_state.get('role', 'user').upper())}<br>
-            Source: Google Sheets • {html.escape(SHEET_NAME)}<br>
+            Source: {html.escape(EXCEL_FILE)}<br>
             {ai_status}
         </div>
         """,
@@ -1138,7 +1098,7 @@ if page == "🗑️ Delete Audit Entry":
 
     page_title("Delete Audit Entry", "Select a chassis record to permanently delete it.")
     try:
-        df_delete = load_excel()
+        df_delete = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
         chassis_col_delete = find_col(df_delete, ["Chassis No", "Chassis", "Chassis Number"])
         if not chassis_col_delete:
             st.error("Excel sheet mein Chassis No. column nahi mila.")
@@ -1175,7 +1135,11 @@ if page == "🗑️ Delete Audit Entry":
                     disabled=not confirm_delete,
                 ):
                     df_delete = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
-                    save_audit_dataframe(df_delete)
+                    with pd.ExcelWriter(
+                        EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="replace"
+                    ) as writer:
+                        df_delete.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+                    st.cache_data.clear()
                     st.success(f"Chassis {selected_chassis} aur uski tamam defect entries delete ho gayi hain.")
                     st.rerun()
     except Exception as exc:
@@ -1224,7 +1188,7 @@ if page == "➕ Add Audit Data":
     duplicate_chassis_live = False
     if chassis_key_live:
         try:
-            df_chassis_live = load_excel()
+            df_chassis_live = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
             chassis_col_live = find_col(df_chassis_live, ["Chassis No", "Chassis Number", "Chassis"])
             if chassis_col_live:
                 existing_live = df_chassis_live[chassis_col_live].map(_normalize_chassis)
@@ -1341,7 +1305,7 @@ if page == "➕ Add Audit Data":
             })
 
         submitted = st.form_submit_button(
-            "Save All Defects to Google Sheets", type="primary", use_container_width=True
+            "Save All Defects to Excel", type="primary", use_container_width=True
         )
 
         if submitted:
@@ -1352,7 +1316,7 @@ if page == "➕ Add Audit Data":
                 if not str(chassis_no).strip():
                     st.error("Chassis No. zaroor enter karein.")
                     st.stop()
-                df_existing = load_excel()
+                df_existing = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
                 df_existing.columns = (
                     df_existing.columns.astype(str).str.strip()
                     .str.replace("\\n", " ", regex=False)
@@ -1517,7 +1481,9 @@ if page == "➕ Add Audit Data":
                         ignore_index=True,
                     )
 
-                save_audit_dataframe(df_existing)
+                with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+                    df_existing.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+                st.cache_data.clear()
                 st.success(f"{len(valid_entries)} Defect Entry(s) save ho gayi. Chassis {str(chassis_no).strip()} ki ek row maintain ki gayi hai.")
                 st.rerun()
             except Exception as e:
