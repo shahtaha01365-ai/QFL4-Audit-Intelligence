@@ -1155,30 +1155,7 @@ if page == "➕ Add Audit Data":
 
     page_title("Admin Data Entry", "System mein naya audit record darj karein.")
 
-    # Keep chassis input OUTSIDE the Streamlit form so duplicate validation
-    # runs immediately while the admin types, rather than only after Save.
-    chassis_no = st.text_input(
-        "Chassis No.",
-        value="CH-9999",
-        key="chassis_no_live",
-        help="Duplicate chassis number type karte hi yahin warning show hogi."
-    )
     chassis_duplicate = False
-    chassis_check_message = ""
-    if str(chassis_no).strip():
-        try:
-            _df_chassis_check = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
-            _chassis_col_check = find_col(_df_chassis_check, ["Chassis No", "Chassis", "Chassis Number"])
-            if _chassis_col_check:
-                _entered_key = str(chassis_no).strip().casefold()
-                chassis_duplicate = _df_chassis_check[_chassis_col_check].fillna("").astype(str).str.strip().str.casefold().eq(_entered_key).any()
-                if chassis_duplicate:
-                    chassis_check_message = "This chassis number is already entered. Please check the chassis number and enter a new one."
-                    st.error(chassis_check_message)
-                else:
-                    st.success("Chassis number available.")
-        except Exception as _chassis_check_error:
-            st.warning(f"Chassis duplicate check unavailable: {_chassis_check_error}")
 
     # Keep the defect rows horizontal and let the admin choose how many
     # nomenclature entries belong to this chassis.
@@ -1198,7 +1175,7 @@ if page == "➕ Add Audit Data":
             audit_date = st.date_input("Date", datetime.now())
             vehicle_name = st.text_input("Vehicle Name", "FUSO Canter")
             model_name = st.text_input("Model", "FE84")
-            chassis_no = st.text_input("Chassis No.", "CH-9999")
+            chassis_no = st.text_input("Chassis No.", "CH-9999", key="chassis_no_vehicle_details")
             engine_no = st.text_input("Engine No.", placeholder="Enter engine number")
 
         st.markdown("### Fluid Check")
