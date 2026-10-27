@@ -65,46 +65,6 @@ TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
 TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
 
 
-def upload_defect_image_to_drive(uploaded_file, chassis_no, defect_number):
-    """Upload a defect photo to Google Drive and return its share URL."""
-    try:
-        from google.oauth2.service_account import Credentials
-        from googleapiclient.discovery import build
-        from googleapiclient.http import MediaIoBaseUpload
-        import io
-
-        service_account_info = dict(st.secrets["gdrive_service_account"])
-        folder_id = st.secrets.get("GDRIVE_FOLDER_ID", "")
-        credentials = Credentials.from_service_account_info(
-            service_account_info,
-            scopes=["https://www.googleapis.com/auth/drive"],
-        )
-        drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
-        safe_chassis = re.sub(r"[^A-Za-z0-9_-]+", "_", str(chassis_no).strip())
-        filename = f"{safe_chassis}_Defect_{defect_number}_{datetime.now():%Y%m%d_%H%M%S}_{uploaded_file.name}"
-        metadata = {"name": filename}
-        if folder_id:
-            metadata["parents"] = [folder_id]
-        media = MediaIoBaseUpload(
-            io.BytesIO(uploaded_file.getvalue()),
-            mimetype=uploaded_file.type or "application/octet-stream",
-            resumable=True,
-        )
-        created = drive.files().create(
-            body=metadata, media_body=media, fields="id, webViewLink"
-        ).execute()
-        # Allow the app's signed-in users to open the photo via its stored link.
-        drive.permissions().create(
-            fileId=created["id"],
-            body={"type": "anyone", "role": "reader"},
-            fields="id",
-        ).execute()
-        return created.get("webViewLink", f"https://drive.google.com/file/d/{created['id']}/view")
-    except Exception as exc:
-        raise RuntimeError(
-            "Google Drive upload failed. Streamlit Secrets mein gdrive_service_account aur "
-            "GDRIVE_FOLDER_ID configure karein. Details: " + str(exc)
-        ) from exc
 
 AI_MODEL = "gemini-3.6-flash"
 
@@ -1335,18 +1295,13 @@ if page == "➕ Add Audit Data":
                 defect = st.text_input("Defect Description", placeholder="Defect description",
                                        key=f"nomenclature_defect_{idx}")
 
-            defect_image = st.file_uploader(
-                f"Defect {idx + 1} Picture (optional)",
-                type=["jpg", "jpeg", "png", "webp"],
-                key=f"defect_image_{idx}",
-                help="Photo Google Drive par save hogi; Excel mein uska link store hoga.",
-            )
+
 
             nomenclature_entries.append({
                 "type": entry_type.strip(), "category": entry_category.strip(),
                 "department": department.strip(), "qty": int(entry_qty), "class": entry_class, "zone": entry_zone,
                 "vloc": vloc, "area": area, "part": part.strip(),
-                "ploc": ploc, "defect": defect.strip(), "image_file": defect_image
+                "ploc": ploc, "defect": defect.strip()
             })
 
         submitted = st.form_submit_button(
@@ -1470,13 +1425,6 @@ if page == "➕ Add Audit Data":
                     st.error("This chassis number is already entered.")
                     st.stop()
 
-                # Upload each attached defect photo to Drive and keep only its URL in Excel.
-                for defect_number, item in enumerate(valid_entries, start=1):
-                    item["image_url"] = ""
-                    if item.get("image_file") is not None:
-                        item["image_url"] = upload_defect_image_to_drive(
-                            item["image_file"], str(chassis_no).strip(), defect_number
-                        )
 
                 if matching_rows:
                     target_idx = matching_rows[0]
@@ -1519,7 +1467,7 @@ if page == "➕ Add Audit Data":
                     for n, item in enumerate(valid_entries, start=1):
                         for field, value in [
                             ("Defect Type", item["type"]), ("Defect Category", item["category"]),
-                            ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"]), ("Defect Image URL", item.get("image_url", ""))
+                            ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
                         ]:
                             new_entry[f"{field} {n}"] = value
                     for col in df_existing.columns:
