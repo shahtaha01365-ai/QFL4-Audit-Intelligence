@@ -64,6 +64,48 @@ USERS_FILE = str(APP_DIR / "users.json")
 TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
 TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
 
+
+def upload_defect_image_to_drive(uploaded_file, chassis_no, defect_number):
+    """Upload a defect photo to Google Drive and return its share URL."""
+    try:
+        from google.oauth2.service_account import Credentials
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaIoBaseUpload
+        import io
+
+        service_account_info = dict(st.secrets["gdrive_service_account"])
+        folder_id = st.secrets.get("GDRIVE_FOLDER_ID", "")
+        credentials = Credentials.from_service_account_info(
+            service_account_info,
+            scopes=["https://www.googleapis.com/auth/drive"],
+        )
+        drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
+        safe_chassis = re.sub(r"[^A-Za-z0-9_-]+", "_", str(chassis_no).strip())
+        filename = f"{safe_chassis}_Defect_{defect_number}_{datetime.now():%Y%m%d_%H%M%S}_{uploaded_file.name}"
+        metadata = {"name": filename}
+        if folder_id:
+            metadata["parents"] = [folder_id]
+        media = MediaIoBaseUpload(
+            io.BytesIO(uploaded_file.getvalue()),
+            mimetype=uploaded_file.type or "application/octet-stream",
+            resumable=True,
+        )
+        created = drive.files().create(
+            body=metadata, media_body=media, fields="id, webViewLink"
+        ).execute()
+        # Allow the app's signed-in users to open the photo via its stored link.
+        drive.permissions().create(
+            fileId=created["id"],
+            body={"type": "anyone", "role": "reader"},
+            fields="id",
+        ).execute()
+        return created.get("webViewLink", f"https://drive.google.com/file/d/{created['id']}/view")
+    except Exception as exc:
+        raise RuntimeError(
+            "Google Drive upload failed. Streamlit Secrets mein gdrive_service_account aur "
+            "GDRIVE_FOLDER_ID configure karein. Details: " + str(exc)
+        ) from exc
+
 AI_MODEL = "gemini-3.6-flash"
 
 LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
@@ -1155,8 +1197,6 @@ if page == "➕ Add Audit Data":
 
     page_title("Admin Data Entry", "System mein naya audit record darj karein.")
 
-    chassis_duplicate = False
-
     # Keep the defect rows horizontal and let the admin choose how many
     # nomenclature entries belong to this chassis.
     defect_rows_count = st.number_input(
@@ -1168,15 +1208,39 @@ if page == "➕ Add Audit Data":
         key="nomenclature_rows_count",
     )
 
+    # Chassis input intentionally stays OUTSIDE the form so Streamlit reruns
+    # on every edit and duplicate feedback appears beside this one field.
+    st.markdown("### Vehicle / Audit Details")
+    c1, c2 = st.columns(2)
+    with c1:
+        audit_date = st.date_input("Date", datetime.now(), key="audit_date_live")
+        vehicle_name = st.text_input("Vehicle Name", "FUSO Canter", key="vehicle_name_live")
+        model_name = st.text_input("Model", "FE84", key="model_name_live")
+        chassis_no = st.text_input("Chassis No.", "", key="chassis_no_vehicle_details")
+        engine_no = st.text_input("Engine No.", placeholder="Enter engine number", key="engine_no_live")
+
+    def _normalize_chassis(value):
+        if pd.isna(value):
+            return ""
+        return re.sub(r"[^a-z0-9]", "", str(value).strip().casefold())
+
+    chassis_key_live = _normalize_chassis(chassis_no)
+    duplicate_chassis_live = False
+    if chassis_key_live:
+        try:
+            df_chassis_live = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+            chassis_col_live = find_col(df_chassis_live, ["Chassis No", "Chassis Number", "Chassis"])
+            if chassis_col_live:
+                existing_live = df_chassis_live[chassis_col_live].map(_normalize_chassis)
+                duplicate_chassis_live = bool((existing_live.ne("") & existing_live.eq(chassis_key_live)).any())
+            else:
+                st.error("Excel mein 'Chassis No' column nahi mil raha. Column heading check karein.")
+        except Exception as exc:
+            st.error(f"Chassis duplicate check nahi ho saka: {exc}")
+    if duplicate_chassis_live:
+        st.error("This chassis number is already entered.")
+
     with st.form("add_data_form"):
-        st.markdown("### Vehicle / Audit Details")
-        c1, c2 = st.columns(2)
-        with c1:
-            audit_date = st.date_input("Date", datetime.now())
-            vehicle_name = st.text_input("Vehicle Name", "FUSO Canter")
-            model_name = st.text_input("Model", "FE84")
-            chassis_no = st.text_input("Chassis No.", "CH-9999", key="chassis_no_vehicle_details")
-            engine_no = st.text_input("Engine No.", placeholder="Enter engine number")
 
         st.markdown("### Fluid Check")
         st.caption("Har item ke liye sirf tick (✓) ya cross (✗) select karein.")
@@ -1271,11 +1335,18 @@ if page == "➕ Add Audit Data":
                 defect = st.text_input("Defect Description", placeholder="Defect description",
                                        key=f"nomenclature_defect_{idx}")
 
+            defect_image = st.file_uploader(
+                f"Defect {idx + 1} Picture (optional)",
+                type=["jpg", "jpeg", "png", "webp"],
+                key=f"defect_image_{idx}",
+                help="Photo Google Drive par save hogi; Excel mein uska link store hoga.",
+            )
+
             nomenclature_entries.append({
                 "type": entry_type.strip(), "category": entry_category.strip(),
                 "department": department.strip(), "qty": int(entry_qty), "class": entry_class, "zone": entry_zone,
                 "vloc": vloc, "area": area, "part": part.strip(),
-                "ploc": ploc, "defect": defect.strip()
+                "ploc": ploc, "defect": defect.strip(), "image_file": defect_image
             })
 
         submitted = st.form_submit_button(
@@ -1283,14 +1354,13 @@ if page == "➕ Add Audit Data":
         )
 
         if submitted:
+            if duplicate_chassis_live:
+                st.error("This chassis number is already entered.")
+                st.stop()
             try:
                 if not str(chassis_no).strip():
                     st.error("Chassis No. zaroor enter karein.")
                     st.stop()
-                if chassis_duplicate:
-                    st.error("This chassis number is already entered. Please check the chassis number and enter a new one.")
-                    st.stop()
-
                 df_existing = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
                 df_existing.columns = (
                     df_existing.columns.astype(str).str.strip()
@@ -1385,17 +1455,28 @@ if page == "➕ Add Audit Data":
                         if col not in df_existing.columns:
                             df_existing[col] = pd.NA
 
-                chassis_col = find_col(df_existing, ["Chassis No", "Chassis", "Chassis Number"])
-                chassis_key = str(chassis_no).strip().casefold()
-                matching_rows = []
-                if chassis_col:
-                    matching_rows = df_existing.index[
-                        df_existing[chassis_col].fillna("").astype(str).str.strip().str.casefold() == chassis_key
-                    ].tolist()
-
-                if matching_rows:
-                    st.error("This chassis number is already entered. Please check the chassis number and enter a new one.")
+                # Reliable duplicate check: match the chassis-specific column only,
+                # normalize case and remove spaces/punctuation on both sides.
+                chassis_col = find_col(df_existing, ["Chassis No", "Chassis Number", "Chassis"])
+                chassis_key = _normalize_chassis(chassis_no)
+                if not chassis_col:
+                    st.error("Excel mein 'Chassis No' column nahi mil raha. Column heading check karein.")
                     st.stop()
+                existing_chassis = df_existing[chassis_col].map(_normalize_chassis)
+                matching_rows = df_existing.index[
+                    existing_chassis.ne("") & existing_chassis.eq(chassis_key)
+                ].tolist()
+                if matching_rows:
+                    st.error("This chassis number is already entered.")
+                    st.stop()
+
+                # Upload each attached defect photo to Drive and keep only its URL in Excel.
+                for defect_number, item in enumerate(valid_entries, start=1):
+                    item["image_url"] = ""
+                    if item.get("image_file") is not None:
+                        item["image_url"] = upload_defect_image_to_drive(
+                            item["image_file"], str(chassis_no).strip(), defect_number
+                        )
 
                 if matching_rows:
                     target_idx = matching_rows[0]
@@ -1438,7 +1519,7 @@ if page == "➕ Add Audit Data":
                     for n, item in enumerate(valid_entries, start=1):
                         for field, value in [
                             ("Defect Type", item["type"]), ("Defect Category", item["category"]),
-                            ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"])
+                            ("Department", item["department"]), ("Defect Class", item["class"]), ("Zone", item["zone"]), ("QTY", item["qty"]), ("Defect Image URL", item.get("image_url", ""))
                         ]:
                             new_entry[f"{field} {n}"] = value
                     for col in df_existing.columns:
