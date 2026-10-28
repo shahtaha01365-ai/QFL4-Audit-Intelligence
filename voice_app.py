@@ -2,6 +2,10 @@ import os
 import re
 import html
 import json
+import base64
+import io
+import urllib.error
+import urllib.request
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -58,6 +62,15 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Show the result of the most recent Google Sheets -> GitHub sync across reruns.
+if st.session_state.get("github_sync_notice"):
+    notice = st.session_state.pop("github_sync_notice")
+    notice_type = st.session_state.pop("github_sync_notice_type", "info")
+    if notice_type == "success":
+        st.success(notice)
+    else:
+        st.warning(notice)
 
 APP_DIR = Path(__file__).resolve().parent
 EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")  # Optional local backup/import file
@@ -809,17 +822,99 @@ def load_excel():
     return d
 
 
+def sync_audit_excel_to_github(dataframe):
+    """Commit the latest audit DataFrame to the repository's audit_data.xlsx."""
+    token = st.secrets.get("GITHUB_TOKEN", "")
+    if not token:
+        raise RuntimeError("GITHUB_TOKEN is missing from Streamlit Cloud Secrets.")
+
+    owner = st.secrets.get("GITHUB_REPO_OWNER", "shahtaha01365-ai")
+    repo = st.secrets.get("GITHUB_REPO_NAME", "QFL4-Audit-Intelligence")
+    branch = st.secrets.get("GITHUB_BRANCH", "main")
+    file_path = st.secrets.get("GITHUB_EXCEL_PATH", "audit_data.xlsx")
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+
+    # Build an Excel workbook in memory; do not write to the local app filesystem.
+    clean_df = dataframe.copy()
+    with io.BytesIO() as excel_buffer:
+        with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+            clean_df.to_excel(writer, index=False, sheet_name="Audit Data")
+        workbook_bytes = excel_buffer.getvalue()
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "QFL4-Audit-Intelligence",
+    }
+
+    # Existing files need their current SHA; a 404 means the file will be created.
+    sha = None
+    get_request = urllib.request.Request(api_url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(get_request, timeout=25) as response:
+            current_file = json.loads(response.read().decode("utf-8"))
+            sha = current_file.get("sha")
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"GitHub could not read {file_path} (HTTP {exc.code}): {detail[:300]}") from exc
+
+    payload = {
+        "message": "Update audit_data.xlsx from Google Sheets",
+        "content": base64.b64encode(workbook_bytes).decode("ascii"),
+        "branch": branch,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    put_headers = dict(headers)
+    put_headers["Content-Type"] = "application/json"
+    put_request = urllib.request.Request(
+        api_url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=put_headers,
+        method="PUT",
+    )
+    try:
+        with urllib.request.urlopen(put_request, timeout=40) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"GitHub commit failed (HTTP {exc.code}): {detail[:400]}") from exc
+
+    commit_sha = result.get("commit", {}).get("sha", "")
+    return commit_sha
+
+
 def save_google_sheet(dataframe):
-    """Replace worksheet contents with the supplied DataFrame."""
+    """Save to Google Sheets first, then sync the same data to GitHub Excel."""
     worksheet = get_google_worksheet()
     clean_df = dataframe.copy().fillna("")
     clean_df = clean_df.astype(object).where(pd.notna(clean_df), "")
     rows = [clean_df.columns.astype(str).tolist()]
     for row in clean_df.itertuples(index=False, name=None):
         rows.append([value.isoformat() if isinstance(value, (pd.Timestamp, datetime)) else str(value) if value is not None else "" for value in row])
+
+    # Preserve the existing Google Sheets workflow and only attempt GitHub sync
+    # after the Google Sheets update has completed successfully.
     worksheet.clear()
     if rows:
         worksheet.update(range_name="A1", values=rows, value_input_option="USER_ENTERED")
+
+    try:
+        commit_sha = sync_audit_excel_to_github(clean_df)
+        st.session_state["github_sync_notice"] = (
+            "GitHub Excel synced successfully (audit_data.xlsx)."
+            + (f" Commit: {commit_sha[:7]}" if commit_sha else "")
+        )
+        st.session_state["github_sync_notice_type"] = "success"
+    except Exception as exc:
+        # Do not undo or misreport the successful Google Sheets save.
+        st.session_state["github_sync_notice"] = (
+            "Google Sheets saved, but GitHub Excel sync failed: " + str(exc)
+        )
+        st.session_state["github_sync_notice_type"] = "warning"
 
 def page_title(title, description):
     st.markdown(
