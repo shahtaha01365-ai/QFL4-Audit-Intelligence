@@ -6,3 +6,4 @@ google-generativeai>=0.8
 streamlit-mic-recorder>=0.0.8
 gspread
 google-auth
+requests
