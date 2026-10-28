@@ -9,6 +9,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Google Gemini AI
 import google.generativeai as genai
@@ -58,8 +60,9 @@ st.set_page_config(
 )
 
 APP_DIR = Path(__file__).resolve().parent
-EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")
+EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")  # Optional local backup/import file
 SHEET_NAME = "Audit Entries"
+GOOGLE_SHEET_ID = st.secrets.get("GOOGLE_SHEET_ID", "1ADGSkAzFDxvj2GPQ0P8mJb1_u3BVGVYdBFREAy0rdmM")
 USERS_FILE = str(APP_DIR / "users.json")
 TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
 TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
@@ -136,14 +139,14 @@ st.markdown(
     display: none !important;
 }
 
-/* Header ko poora hide nahi karna - warna sidebar ka open/close arrow bhi ghayab ho jata hai */
+/* Keep the header visible so the sidebar toggle remains accessible. */
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
     height: 3rem !important;
 }
 
-/* Sidebar collapse/expand ka arrow hamesha visible aur clickable rahe */
+/* Keep the sidebar expand/collapse control visible and clickable. */
 [data-testid="collapsedControl"] {
     visibility: visible !important;
     display: flex !important;
@@ -775,14 +778,48 @@ def calculate_dpu(d):
     tot_def = total_defects(d)
     return round(tot_def / v_count, 2)
 
-@st.cache_data(ttl=30)
+def get_google_worksheet():
+    """Connect to the configured Google Sheet using Streamlit secrets."""
+    service_account_info = dict(st.secrets["gcp_service_account"])
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    credentials = Credentials.from_service_account_info(service_account_info, scopes=scopes)
+    client = gspread.authorize(credentials)
+    spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
+    return spreadsheet.worksheet(SHEET_NAME)
+
+
 def load_excel():
-    d = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+    """Load audit records from Google Sheets (the authoritative data source)."""
+    worksheet = get_google_worksheet()
+    values = worksheet.get_all_values()
+    if not values:
+        return pd.DataFrame()
+    headers = [str(value).strip() for value in values[0]]
+    rows = values[1:]
+    # Pad short rows and trim any extra cells to match the header width.
+    normalized_rows = [(row[:len(headers)] + [""] * max(0, len(headers) - len(row))) for row in rows]
+    d = pd.DataFrame(normalized_rows, columns=headers)
     d.columns = d.columns.astype(str).str.strip().str.replace("\n", " ", regex=False).str.replace(r"\s+", " ", regex=True)
     date_col = next((x for x in d.columns if str(x).strip().lower() == "date"), None)
     if date_col:
         d[date_col] = pd.to_datetime(d[date_col], errors="coerce")
     return d
+
+
+def save_google_sheet(dataframe):
+    """Replace worksheet contents with the supplied DataFrame."""
+    worksheet = get_google_worksheet()
+    clean_df = dataframe.copy().fillna("")
+    clean_df = clean_df.astype(object).where(pd.notna(clean_df), "")
+    rows = [clean_df.columns.astype(str).tolist()]
+    for row in clean_df.itertuples(index=False, name=None):
+        rows.append([value.isoformat() if isinstance(value, (pd.Timestamp, datetime)) else str(value) if value is not None else "" for value in row])
+    worksheet.clear()
+    if rows:
+        worksheet.update(range_name="A1", values=rows, value_input_option="USER_ENTERED")
 
 def page_title(title, description):
     st.markdown(
@@ -830,7 +867,7 @@ STRICT DATA RULES:
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail. Look up the exact numbers from the supplied summaries and rows.
 3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period.
 4. Respect active dashboard filters.
-5. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu). You MUST reply in the EXACT SAME language and script/style that the user used.
+5. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
 6. Keep answers concise, accurate, and fast.
 
 ACTIVE FILTERED AUDIT DATA & SUMMARIES:
@@ -860,7 +897,7 @@ CURRENT SYSTEM DATE: {current_date_str}
 STRICT DATA RULES:
 1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
-3. LANGUAGE MATCHING RULE: Detect the language of the user's question (English, Urdu, or Roman Urdu) and reply in the EXACT SAME language.
+3. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
 4. Keep answers concise and clear.
 
 ACTIVE FILTERED AUDIT DATA & SUMMARIES:
@@ -893,18 +930,15 @@ if not st.session_state.logged_in:
 # ============================================================
 # REQUIRED FILE CHECK
 # ============================================================
-if not os.path.exists(EXCEL_FILE):
-    st.error(f"{EXCEL_FILE} not found. Upload it beside your app file.")
-    st.stop()
-
-
 # ============================================================
-# LOAD DATA
+# LOAD DATA FROM GOOGLE SHEETS
 # ============================================================
 try:
     df = load_excel()
 except Exception as exc:
-    st.error(f"Could not read {EXCEL_FILE}: {exc}")
+    st.error("Unable to load audit data from Google Sheets.")
+    st.caption(f"Details: {type(exc).__name__}: {exc}")
+    st.info("Verify that Streamlit Secrets contains [gcp_service_account], GOOGLE_SHEET_ID is correct, the worksheet tab is named 'Audit Entries', and the service account has Editor access to the spreadsheet.")
     st.stop()
 
 
@@ -944,18 +978,9 @@ with st.sidebar:
 
     page = st.radio("Pages", nav_pages, label_visibility="collapsed")
 
-    # SIDEBAR EXCEL FILE UPLOADER (ADMIN ONLY)
     if st.session_state.get("role") == "admin":
         st.markdown('<div class="nav-section">DATA MANAGEMENT</div>', unsafe_allow_html=True)
-        uploaded_excel = st.file_uploader("Upload New Excel Sheet", type=["xlsx", "xls"], key="sidebar_excel_upload")
-        if uploaded_excel is not None:
-            try:
-                with open(EXCEL_FILE, "wb") as f:
-                    f.write(uploaded_excel.getbuffer())
-                st.success("Excel sheet updated successfully! 🎉")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error saving file: {e}")
+        st.caption("Audit records are stored in the connected Google Sheet.")
 
     st.markdown('<div class="nav-section">SYSTEM</div>', unsafe_allow_html=True)
     ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
@@ -966,7 +991,7 @@ with st.sidebar:
         <div class="sidebar-note">
             User: {html.escape(st.session_state.get('user_email', ''))}<br>
             Role: {html.escape(st.session_state.get('role', 'user').upper())}<br>
-            Source: {html.escape(EXCEL_FILE)}<br>
+            Source: Google Sheets<br>
             {ai_status}
         </div>
         """,
@@ -1093,15 +1118,15 @@ if page == "👥 Manage Users":
 # ============================================================
 if page == "🗑️ Delete Audit Entry":
     if st.session_state.get("role") != "admin":
-        st.error("Access Denied: Yeh page sirf Administrator ke liye hai.")
+        st.error("Access denied. Administrator privileges are required to access this page.")
         st.stop()
 
     page_title("Delete Audit Entry", "Select a chassis record to permanently delete it.")
     try:
-        df_delete = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+        df_delete = load_excel()
         chassis_col_delete = find_col(df_delete, ["Chassis No", "Chassis", "Chassis Number"])
         if not chassis_col_delete:
-            st.error("Excel sheet mein Chassis No. column nahi mila.")
+            st.error("The Chassis No. column was not found in the spreadsheet.")
         else:
             chassis_values = (
                 df_delete[chassis_col_delete]
@@ -1113,7 +1138,7 @@ if page == "🗑️ Delete Audit Entry":
             unique_chassis = sorted(chassis_values.unique().tolist())
 
             if not unique_chassis:
-                st.info("Delete karne ke liye koi chassis entry mojood nahi.")
+                st.info("No chassis entries are available to delete.")
             else:
                 selected_chassis = st.selectbox("Select Chassis Number", unique_chassis)
                 matching_delete_rows = df_delete.index[
@@ -1121,8 +1146,8 @@ if page == "🗑️ Delete Audit Entry":
                     == selected_chassis.casefold()
                 ].tolist()
                 st.warning(
-                    f"Chassis **{selected_chassis}** ki {len(matching_delete_rows)} row(s) "
-                    "aur unke tamam defect details delete ho jayenge."
+                    f"Deleting chassis **{selected_chassis}** will permanently remove {len(matching_delete_rows)} row(s) "
+                    "and all associated defect details."
                 )
                 confirm_delete = st.checkbox(
                     "I understand this action cannot be undone.",
@@ -1135,15 +1160,11 @@ if page == "🗑️ Delete Audit Entry":
                     disabled=not confirm_delete,
                 ):
                     df_delete = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
-                    with pd.ExcelWriter(
-                        EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="replace"
-                    ) as writer:
-                        df_delete.to_excel(writer, sheet_name=SHEET_NAME, index=False)
-                    st.cache_data.clear()
-                    st.success(f"Chassis {selected_chassis} aur uski tamam defect entries delete ho gayi hain.")
+                    save_google_sheet(df_delete)
+                    st.success(f"All audit entries for chassis {selected_chassis} were deleted successfully.")
                     st.rerun()
     except Exception as exc:
-        st.error(f"Delete karte waqt error aya: {exc}")
+        st.error(f"An error occurred while deleting the audit entry: {exc}")
     st.stop()
 
 
@@ -1152,10 +1173,10 @@ if page == "🗑️ Delete Audit Entry":
 # ============================================================
 if page == "➕ Add Audit Data":
     if st.session_state.get("role") != "admin":
-        st.error("Access Denied: Yeh page sirf Administrator ke liye hai.")
+        st.error("Access denied. Administrator privileges are required to access this page.")
         st.stop()
 
-    page_title("Admin Data Entry", "System mein naya audit record darj karein.")
+    page_title("Admin Data Entry", "Create a new audit record.")
 
     # Keep the defect rows horizontal and let the admin choose how many
     # nomenclature entries belong to this chassis.
@@ -1188,22 +1209,22 @@ if page == "➕ Add Audit Data":
     duplicate_chassis_live = False
     if chassis_key_live:
         try:
-            df_chassis_live = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+            df_chassis_live = load_excel()
             chassis_col_live = find_col(df_chassis_live, ["Chassis No", "Chassis Number", "Chassis"])
             if chassis_col_live:
                 existing_live = df_chassis_live[chassis_col_live].map(_normalize_chassis)
                 duplicate_chassis_live = bool((existing_live.ne("") & existing_live.eq(chassis_key_live)).any())
             else:
-                st.error("Excel mein 'Chassis No' column nahi mil raha. Column heading check karein.")
+                st.error("The Chassis No column was not found. Please verify the column heading.")
         except Exception as exc:
-            st.error(f"Chassis duplicate check nahi ho saka: {exc}")
+            st.error(f"Unable to check for duplicate chassis numbers: {exc}")
     if duplicate_chassis_live:
         st.error("This chassis number is already entered.")
 
     with st.form("add_data_form"):
 
         st.markdown("### Fluid Check")
-        st.caption("Har item ke liye sirf tick (✓) ya cross (✗) select karein.")
+        st.caption("Select a check mark (✓) or cross (✗) for each item.")
         fc1, fc2, fc3, fc4, fc5 = st.columns(5)
         with fc1:
             fluid_clutch = st.selectbox("CLUTCH", ["✓", "✗"], key="fluid_clutch")
@@ -1226,7 +1247,7 @@ if page == "➕ Add Audit Data":
 
         st.markdown("### Defect Nomenclature")
         st.caption(
-            "Har entry mein Defect Type aur Defect Category alag enter karein. Department, Class, Zone, Quantity "
+            "Enter Defect Type and Defect Category separately for each entry. Department, Class, Zone, and Quantity "
             "aur nomenclature details bhi record hongi."
         )
 
@@ -1305,7 +1326,7 @@ if page == "➕ Add Audit Data":
             })
 
         submitted = st.form_submit_button(
-            "Save All Defects to Excel", type="primary", use_container_width=True
+            "Save All Defects to Google Sheets", type="primary", use_container_width=True
         )
 
         if submitted:
@@ -1314,9 +1335,9 @@ if page == "➕ Add Audit Data":
                 st.stop()
             try:
                 if not str(chassis_no).strip():
-                    st.error("Chassis No. zaroor enter karein.")
+                    st.error("Please enter a chassis number.")
                     st.stop()
-                df_existing = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+                df_existing = load_excel()
                 df_existing.columns = (
                     df_existing.columns.astype(str).str.strip()
                     .str.replace("\\n", " ", regex=False)
@@ -1328,12 +1349,12 @@ if page == "➕ Add Audit Data":
                     if not item["part"] and not item["defect"] and not item["type"] and not item["category"] and not item["department"]:
                         continue
                     if not item["type"] or not item["category"] or not item["department"] or not item["part"] or not item["defect"]:
-                        st.error("Har filled entry mein Defect Type, Defect Category, Department, Part Name aur Defect Description lazmi hain.")
+                        st.error("Each completed entry must include Defect Type, Defect Category, Department, Part Name, and Defect Description.")
                         st.stop()
                     valid_entries.append(item)
 
                 if not valid_entries:
-                    st.error("Kam az kam ek complete Defect Entry enter karein.")
+                    st.error("Please enter at least one complete defect entry.")
                     st.stop()
 
                 # Preserve per-entry details in dedicated Excel columns as well as
@@ -1415,7 +1436,7 @@ if page == "➕ Add Audit Data":
                 chassis_col = find_col(df_existing, ["Chassis No", "Chassis Number", "Chassis"])
                 chassis_key = _normalize_chassis(chassis_no)
                 if not chassis_col:
-                    st.error("Excel mein 'Chassis No' column nahi mil raha. Column heading check karein.")
+                    st.error("The Chassis No column was not found. Please verify the column heading.")
                     st.stop()
                 existing_chassis = df_existing[chassis_col].map(_normalize_chassis)
                 matching_rows = df_existing.index[
@@ -1481,13 +1502,11 @@ if page == "➕ Add Audit Data":
                         ignore_index=True,
                     )
 
-                with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
-                    df_existing.to_excel(writer, sheet_name=SHEET_NAME, index=False)
-                st.cache_data.clear()
-                st.success(f"{len(valid_entries)} Defect Entry(s) save ho gayi. Chassis {str(chassis_no).strip()} ki ek row maintain ki gayi hai.")
+                save_google_sheet(df_existing)
+                st.success(f"Saved {len(valid_entries)} defect entr{'y' if len(valid_entries) == 1 else 'ies'} successfully. One audit row was maintained for chassis {str(chassis_no).strip()}.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Data save karne mein error aya: {e}")
+                st.error(f"An error occurred while saving the data: {e}")
 
     st.stop()
 
@@ -1506,7 +1525,7 @@ if page == "🏠 Overview":
     )
 else:
     titles = {
-        "🎙️ AI Assistant": ("AI Voice Assistant", "Ask audit questions in English, Urdu, or Roman Urdu via voice or text."),
+        "🎙️ AI Assistant": ("AI Voice Assistant", "Ask audit questions in English using voice or text."),
         "⚠️ Total Defects": ("Total Defects", "Defect performance and class distribution."),
         "📈 Pareto Analysis": ("Pareto Analysis", "Identify the highest-impact defect types and defect categories."),
         "🚗 Vehicle Audit": ("Vehicle Audit", "Vehicle and chassis-level audit information."),
@@ -1523,21 +1542,21 @@ else:
 # DOWNLOAD ONE COMPLETED AUDIT SHEET PER CHASSIS
 # ============================================================
 if page == "📄 Download Chassis Sheet":
-    page_title("Download Chassis Audit Sheet", "Chassis select karein; original FUSO audit template mein details automatically fill ho kar download hongi.")
+    page_title("Download Chassis Audit Sheet", "Select a chassis number to populate and download the original FUSO audit template.")
 
     chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
     if not chassis_col or df.empty:
-        st.warning("Audit data mein Chassis No. column ya records nahin milay.")
+        st.warning("The Chassis No. column or audit records could not be found.")
         st.stop()
 
     chassis_values = sorted(
         df[chassis_col].dropna().astype(str).str.strip().loc[lambda s: s.ne("")].unique().tolist()
     )
     if not chassis_values:
-        st.info("Abhi koi chassis record available nahin.")
+        st.info("No chassis records are currently available.")
         st.stop()
 
-    chosen_chassis = st.selectbox("Chassis No. select karein", chassis_values)
+    chosen_chassis = st.selectbox("Select chassis number", chassis_values)
     vehicle_rows = df[df[chassis_col].fillna("").astype(str).str.strip() == chosen_chassis]
     vehicle = vehicle_rows.iloc[0]
 
@@ -1547,13 +1566,13 @@ if page == "📄 Download Chassis Sheet":
     if not template_path.is_file():
         nearby_xlsx = sorted(p.name for p in APP_DIR.glob("*.xlsx"))
         st.error(
-            f"Audit template file nahi mili. Expected file: {TEMPLATE_FILENAME} "
+            f"Audit template file not found. Expected file: {TEMPLATE_FILENAME} "
             f"\nApp folder: {APP_DIR}"
         )
         if nearby_xlsx:
-            st.caption("App folder mein milne wali .xlsx files: " + ", ".join(nearby_xlsx))
+            st.caption("Available .xlsx files in the application folder: " + ", ".join(nearby_xlsx))
         st.info(
-            "GitHub repository ke usi root/folder mein template upload karein jahan "
+            "Upload the template to the same root folder in the GitHub repository as "
             "Streamlit ki main Python file hai. Filename bilkul exact hona chahiye."
         )
         st.stop()
@@ -1697,9 +1716,9 @@ if page == "📄 Download Chassis Sheet":
                 use_container_width=True,
             )
             st.success(f"Sheet ready: {filled} defect row(s) filled. Control Number, A/B/C/D classification, fluid tick/cross marks, and signature area are included.")
-            st.caption("Coordinator signature jaan-boojh kar blank chhori gayi hai.")
+            st.caption("The coordinator signature field is intentionally left blank.")
         except Exception as exc:
-            st.error(f"Sheet prepare nahin ho saki: {exc}")
+            st.error(f"Unable to prepare the audit sheet: {exc}")
     st.stop()
 
 
@@ -2037,7 +2056,7 @@ if page in ["📈 Pareto Analysis"]:
             <div class="pareto-alert-box">
                 <div class="pareto-alert-title">🚨 HIGHEST PRIORITY ACTION ITEM (DEFECT TYPE 80/20 FOCUS)</div>
                 <div class="pareto-alert-main">Target Defect: {html.escape(str(top_defect_name))} ({top_defect_qty} Units / {top_defect_pct}%)</div>
-                <div class="pareto-alert-desc">Is defect par foran corrective action leni chahiye kyunki yeh total defects ka sab se bara hissa ban raha hai.</div>
+                <div class="pareto-alert-desc">Immediate corrective action is recommended because this defect accounts for the largest share of total defects.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2075,7 +2094,7 @@ if page in ["📈 Pareto Analysis"]:
             <div class="pareto-alert-box">
                 <div class="pareto-alert-title">🚨 HIGHEST PRIORITY ACTION ITEM (DEFECT CATEGORY 80/20 FOCUS)</div>
                 <div class="pareto-alert-main">Target Category: {html.escape(str(top_cat_name))} ({top_cat_qty} Units / {top_cat_pct}%)</div>
-                <div class="pareto-alert-desc">Is category par foran focus karein kyunki yeh maximum defect category share rakhti hai.</div>
+                <div class="pareto-alert-desc">Prioritize this category because it accounts for the largest share of defects.</div>
             </div>
             """,
             unsafe_allow_html=True,
