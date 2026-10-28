@@ -72,6 +72,9 @@ if st.session_state.get("github_sync_notice"):
     else:
         st.warning(notice)
 
+if st.session_state.get("audit_save_notice"):
+    st.success(st.session_state.pop("audit_save_notice"))
+
 APP_DIR = Path(__file__).resolve().parent
 EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")  # Optional local backup/import file
 SHEET_NAME = "Audit Entries"
@@ -1267,6 +1270,36 @@ if page == "🗑️ Delete Audit Entry":
 # ADMIN PAGE: ADD AUDIT DATA
 # ============================================================
 if page == "➕ Add Audit Data":
+    # Clear the previous entry on the rerun after a successful save.
+    # This runs before the page widgets are created, so Streamlit permits state updates.
+    if st.session_state.pop("clear_audit_form_on_rerun", False):
+        st.session_state["nomenclature_rows_count"] = 1
+        st.session_state["audit_date_live"] = datetime.now().date()
+        st.session_state["vehicle_name_live"] = "FUSO Canter"
+        st.session_state["model_name_live"] = "FE84"
+        st.session_state["chassis_no_vehicle_details"] = ""
+        st.session_state["engine_no_live"] = ""
+        for key, default in {
+            "fluid_clutch": "✓",
+            "fluid_engine": "✓",
+            "fluid_brake": "✓",
+            "fluid_llc": "✓",
+            "fluid_washer": "✓",
+        }.items():
+            st.session_state[key] = default
+        for idx in range(30):
+            st.session_state[f"entry_type_{idx}"] = "Safety"
+            st.session_state[f"entry_category_{idx}"] = "Over Tightening"
+            st.session_state[f"entry_department_{idx}"] = "Weld Shop"
+            st.session_state[f"entry_qty_{idx}"] = 1
+            st.session_state[f"entry_class_{idx}"] = "A"
+            st.session_state[f"entry_zone_{idx}"] = "A"
+            st.session_state[f"nomenclature_vloc_{idx}"] = "RH"
+            st.session_state[f"nomenclature_area_{idx}"] = "Side"
+            st.session_state[f"nomenclature_part_{idx}"] = ""
+            st.session_state[f"nomenclature_ploc_{idx}"] = "RH"
+            st.session_state[f"nomenclature_defect_{idx}"] = ""
+
     if st.session_state.get("role") != "admin":
         st.error("Access denied. Administrator privileges are required to access this page.")
         st.stop()
@@ -1598,7 +1631,12 @@ if page == "➕ Add Audit Data":
                     )
 
                 save_google_sheet(df_existing)
-                st.success(f"Saved {len(valid_entries)} defect entr{'y' if len(valid_entries) == 1 else 'ies'} successfully. One audit row was maintained for chassis {str(chassis_no).strip()}.")
+                st.session_state["audit_save_notice"] = (
+                    f"Audit data saved successfully. {len(valid_entries)} defect entr"
+                    f"{'y' if len(valid_entries) == 1 else 'ies'} recorded for chassis "
+                    f"{str(chassis_no).strip()}. Form cleared for the next audit."
+                )
+                st.session_state["clear_audit_form_on_rerun"] = True
                 st.rerun()
             except Exception as e:
                 st.error(f"An error occurred while saving the data: {e}")
