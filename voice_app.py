@@ -539,8 +539,14 @@ if (
             st.session_state.portal_loading = True
 
 if not st.session_state.logged_in:
+    # The login form runs during this same Streamlit script execution.
+    # Re-check session_state after rendering it: stop only when login is
+    # still unsuccessful. If credentials were accepted, rerun the script
+    # so execution continues through the authenticated portal below.
     login(load_users, save_users)
-    st.stop()
+    if not st.session_state.get("logged_in", False):
+        st.stop()
+    st.rerun()
 
 user_email = st.session_state.get("user_email", "")
 user_profile = load_users().get(user_email, {})

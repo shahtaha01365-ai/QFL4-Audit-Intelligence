@@ -275,11 +275,12 @@ def login(load_users, save_users):
                     if not e_clean or not p:
                         st.error("Please enter your email and password.")
                     elif e_clean in users:
-                        if users[e_clean]["status"] == "approved":
-                            if users[e_clean]["password"] == p:
+                        account = users[e_clean]
+                        if account.get("status") == "approved":
+                            if account.get("password") == p:
                                 st.session_state.logged_in = True
                                 st.session_state.user_email = e_clean
-                                st.session_state.role = users[e_clean].get("role", "user")
+                                st.session_state.role = account.get("role", "user")
                                 st.session_state.auth_cookie_revoked = False
                                 st.session_state.portal_loading = True
                                 set_auth_cookie(create_auth_token(e_clean))
