@@ -1,0 +1,1405 @@
+import os
+import re
+import html
+import json
+import base64
+import io
+import urllib.error
+import urllib.request
+from pathlib import Path
+from datetime import datetime
+from types import SimpleNamespace
+
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
+import gspread
+from google.oauth2.service_account import Credentials
+
+# Google Gemini AI
+import google.generativeai as genai
+from streamlit_mic_recorder import mic_recorder
+
+# UI modules (keep these files in the same folder as this file)
+from auth_session import AUTH_COOKIE_NAME, restore_auth_session
+from login_ui import login
+from loading_ui import PORTAL_LOADING_HTML, qfl4_spinner
+from portal_ui import (
+    inject_portal_css,
+    page_title,
+    section_header,
+    render_page_header,
+    render_sidebar,
+    render_overview,
+    render_total_defects,
+    render_class_zone,
+    render_pareto,
+    render_audit_records,
+    render_user_approvals,
+    render_footer,
+)
+
+# ============================================================
+# PAGE / APP CONFIG  (must be the first Streamlit command)
+# ============================================================
+st.set_page_config(
+    page_title="QFL4 AI Audit Intelligence",
+    page_icon="🚚",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# Show the result of the most recent Google Sheets -> GitHub sync across reruns.
+if st.session_state.get("github_sync_notice"):
+    notice = st.session_state.pop("github_sync_notice")
+    notice_type = st.session_state.pop("github_sync_notice_type", "info")
+    if notice_type == "success":
+        st.success(notice)
+    else:
+        st.warning(notice)
+
+if st.session_state.get("audit_save_notice"):
+    audit_notice = html.escape(str(st.session_state.pop("audit_save_notice")))
+    st.html(
+        f"""
+        <div style="position:fixed;inset:0;z-index:2147483647;display:grid;
+                    place-items:center;pointer-events:none;font-family:Inter,'Segoe UI',sans-serif">
+          <div role="status" aria-live="polite"
+               style="box-sizing:border-box;display:flex;align-items:center;gap:14px;
+                      width:min(420px,calc(100vw - 32px));padding:16px 20px;
+                      color:#172234;background:#fff;border:1px solid #dfe7ef;
+                      border-radius:14px;box-shadow:0 18px 55px rgba(15,27,45,.22);
+                      animation:audit-saved-in .24s ease-out both">
+            <span aria-hidden="true"
+                  style="display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;
+                         color:#fff;background:#16a765;border-radius:50%;
+                         font-size:22px;font-weight:800">&#10003;</span>
+            <span style="min-width:0">
+              <span style="display:block;font-size:15px;font-weight:800">Audit record saved</span>
+              <span style="display:block;margin-top:3px;color:#64748b;font-size:12px;line-height:1.45">
+                {audit_notice}
+              </span>
+            </span>
+          </div>
+        </div>
+        <style>
+          @keyframes audit-saved-in {{
+            from {{ opacity:0; transform:translateY(8px) scale(.98); }}
+            to {{ opacity:1; transform:translateY(0) scale(1); }}
+          }}
+        </style>
+        <script>
+          window.setTimeout(() => window.parent.location.reload(), 2000);
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
+APP_DIR = Path(__file__).resolve().parent
+EXCEL_FILE = str(APP_DIR / "audit_data.xlsx")  # Optional local backup/import file
+SHEET_NAME = "Audit Entries"
+GOOGLE_SHEET_ID = st.secrets.get("GOOGLE_SHEET_ID", "1ADGSkAzFDxvj2GPQ0P8mJb1_u3BVGVYdBFREAy0rdmM")
+USERS_FILE = str(APP_DIR / "users.json")
+TEMPLATE_FILENAME = "QFL 4-Product Audit Sheet (Fuso) Revised.xlsx"
+TEMPLATE_PATH = APP_DIR / TEMPLATE_FILENAME
+
+AI_MODEL = "gemini-3.6-flash"
+
+LOGIN_EMAIL = st.secrets.get("LOGIN_EMAIL", os.getenv("LOGIN_EMAIL", ""))
+LOGIN_PASSWORD = st.secrets.get("LOGIN_PASSWORD", os.getenv("LOGIN_PASSWORD", ""))
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = "user"
+if "user_name" not in st.session_state:
+    st.session_state.user_name = ""
+if "show_signup" not in st.session_state:
+    st.session_state.show_signup = False
+
+
+# ============================================================
+# USERS & AUTH HELPERS
+# ============================================================
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        default_users = {}
+        if LOGIN_EMAIL:
+            default_users[LOGIN_EMAIL.strip().lower()] = {
+                "name": "Admin Taha Shahid",
+                "password": LOGIN_PASSWORD,
+                "status": "approved",
+                "role": "admin",
+            }
+        save_users(default_users)
+        return default_users
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_users(users_dict):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_dict, f, indent=4)
+
+
+# ============================================================
+# DATA HELPERS
+# ============================================================
+def init_gemini():
+    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+    if not api_key:
+        return False
+    genai.configure(api_key=api_key)
+    return True
+
+
+def norm(x):
+    return re.sub(r"[^a-z0-9]+", "", str(x).lower())
+
+
+def find_col(d, names):
+    mapping = {norm(c): c for c in d.columns}
+    return next((mapping[norm(x)] for x in names if norm(x) in mapping), None)
+
+
+def nsum(d, c):
+    if not c or c not in d.columns:
+        return 0
+    return int(pd.to_numeric(d[c], errors="coerce").fillna(0).sum())
+
+
+def vehicle_count(d):
+    c = find_col(d, ["Chassis No", "Chassis", "Chassis Number", "Vehicle", "Vehicle No", "Vehicle Number"])
+    if not c:
+        return len(d)
+    s = d[c].dropna().astype(str).str.strip()
+    s = s[s != ""]
+    return int(s.nunique())
+
+
+def class_total(d, label):
+    return nsum(d, find_col(d, [f"CLASS {label}", f"Class {label}", f"CLASS_{label}"]))
+
+
+def zone_total(d, label):
+    return nsum(d, find_col(d, [f"ZONE {label}", f"Zone {label}", f"ZONE_{label}"]))
+
+
+def ab_total(d):
+    c = find_col(d, ["A+B", "A + B", "AB", "A B"])
+    return nsum(d, c) if c else class_total(d, "A") + class_total(d, "B")
+
+
+def total_defects(d):
+    # Prefer the actual quantity entered on the audit form. Some imported
+    # workbooks contain a "Total" column that is blank/zero even when QTY > 0.
+    qty_col_local = find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+    qty_total = nsum(d, qty_col_local)
+    if qty_total:
+        return qty_total
+
+    # Fall back to class totals when present.
+    class_sum = sum(class_total(d, x) for x in "ABCD")
+    if class_sum:
+        return class_sum
+
+    # Last resort: use a general Total column.
+    total_col = find_col(d, ["Total Defects", "Total", "Defects"])
+    return nsum(d, total_col)
+
+
+def calculate_dpu(d):
+    v_count = vehicle_count(d)
+    if v_count == 0:
+        return 0.0
+    tot_def = total_defects(d)
+    return round(tot_def / v_count, 2)
+
+
+@st.cache_resource(show_spinner=False)
+def _google_client():
+    service_account_info = dict(st.secrets["gcp_service_account"])
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    credentials = Credentials.from_service_account_info(service_account_info, scopes=scopes)
+    return gspread.authorize(credentials)
+
+
+def get_google_worksheet():
+    """Connect to the configured Google Sheet using Streamlit secrets."""
+    spreadsheet = _google_client().open_by_key(GOOGLE_SHEET_ID)
+    return spreadsheet.worksheet(SHEET_NAME)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_excel():
+    """Load audit records from Google Sheets (cached for 60 seconds; cleared on every save)."""
+    worksheet = get_google_worksheet()
+    values = worksheet.get_all_values()
+    if not values:
+        return pd.DataFrame()
+    headers = [str(value).strip() for value in values[0]]
+    rows = values[1:]
+    # Pad short rows and trim any extra cells to match the header width.
+    normalized_rows = [(row[:len(headers)] + [""] * max(0, len(headers) - len(row))) for row in rows]
+    d = pd.DataFrame(normalized_rows, columns=headers)
+    d.columns = d.columns.astype(str).str.strip().str.replace("\n", " ", regex=False).str.replace(r"\s+", " ", regex=True)
+    date_col_local = next((x for x in d.columns if str(x).strip().lower() == "date"), None)
+    if date_col_local:
+        d[date_col_local] = pd.to_datetime(d[date_col_local], errors="coerce")
+    return d
+
+
+def sync_audit_excel_to_github(dataframe):
+    """Commit the latest audit DataFrame to the repository's audit_data.xlsx."""
+    token = st.secrets.get("GITHUB_TOKEN", "")
+    if not token:
+        raise RuntimeError("GITHUB_TOKEN is missing from Streamlit Cloud Secrets.")
+
+    owner = st.secrets.get("GITHUB_REPO_OWNER", "shahtaha01365-ai")
+    repo = st.secrets.get("GITHUB_REPO_NAME", "QFL4-Audit-Intelligence")
+    branch = st.secrets.get("GITHUB_BRANCH", "main")
+    file_path = st.secrets.get("GITHUB_EXCEL_PATH", "audit_data.xlsx")
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+
+    # Build an Excel workbook in memory; do not write to the local app filesystem.
+    clean_df = dataframe.copy()
+    with io.BytesIO() as excel_buffer:
+        with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+            clean_df.to_excel(writer, index=False, sheet_name="Audit Data")
+        workbook_bytes = excel_buffer.getvalue()
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "QFL4-Audit-Intelligence",
+    }
+
+    # Existing files need their current SHA; a 404 means the file will be created.
+    sha = None
+    get_request = urllib.request.Request(api_url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(get_request, timeout=25) as response:
+            current_file = json.loads(response.read().decode("utf-8"))
+            sha = current_file.get("sha")
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"GitHub could not read {file_path} (HTTP {exc.code}): {detail[:300]}") from exc
+
+    payload = {
+        "message": "Update audit_data.xlsx from Google Sheets",
+        "content": base64.b64encode(workbook_bytes).decode("ascii"),
+        "branch": branch,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    put_headers = dict(headers)
+    put_headers["Content-Type"] = "application/json"
+    put_request = urllib.request.Request(
+        api_url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=put_headers,
+        method="PUT",
+    )
+    try:
+        with urllib.request.urlopen(put_request, timeout=40) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"GitHub commit failed (HTTP {exc.code}): {detail[:400]}") from exc
+
+    commit_sha = result.get("commit", {}).get("sha", "")
+    return commit_sha
+
+
+def save_google_sheet(dataframe):
+    """Save to Google Sheets first, then sync the same data to GitHub Excel."""
+    with qfl4_spinner("Saving audit records to Google Sheets..."):
+        worksheet = get_google_worksheet()
+        clean_df = dataframe.copy().fillna("")
+        clean_df = clean_df.astype(object).where(pd.notna(clean_df), "")
+        rows = [clean_df.columns.astype(str).tolist()]
+        for row in clean_df.itertuples(index=False, name=None):
+            rows.append([value.isoformat() if isinstance(value, (pd.Timestamp, datetime)) else str(value) if value is not None else "" for value in row])
+
+        # Preserve the existing Google Sheets workflow and only attempt GitHub sync
+        # after the Google Sheets update has completed successfully.
+        worksheet.clear()
+        if rows:
+            worksheet.update(range_name="A1", values=rows, value_input_option="USER_ENTERED")
+        load_excel.clear()  # make every page read the fresh data
+
+        try:
+            commit_sha = sync_audit_excel_to_github(clean_df)
+            st.session_state["github_sync_notice"] = (
+                "GitHub Excel synced successfully (audit_data.xlsx)."
+                + (f" Commit: {commit_sha[:7]}" if commit_sha else "")
+            )
+            st.session_state["github_sync_notice_type"] = "success"
+        except Exception as exc:
+            # Do not undo or misreport the successful Google Sheets save.
+            st.session_state["github_sync_notice"] = (
+                "Google Sheets saved, but GitHub Excel sync failed: " + str(exc)
+            )
+            st.session_state["github_sync_notice_type"] = "warning"
+
+
+# ============================================================
+# AI HELPERS
+# ============================================================
+def make_ai_context(d):
+    summary_str = ""
+    defect_c = find_col(d, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+    qty_c = find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+
+    if defect_c and qty_c:
+        agg = d.groupby(defect_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
+        summary_str = "\n\nCOMPLETE DEFECT TYPE SUMMARY (Total Quantities per Defect Type across all records):\n" + agg.to_string(index=False)
+
+    category_c = find_col(d, ["Defect Category", "Category"])
+    if category_c and qty_c:
+        agg_cat = d.groupby(category_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
+        summary_str += "\n\nCOMPLETE DEFECT CATEGORY SUMMARY:\n" + agg_cat.to_string(index=False)
+
+    sample = d.tail(20).copy()
+    for c in sample.columns:
+        if pd.api.types.is_datetime64_any_dtype(sample[c]):
+            sample[c] = sample[c].dt.strftime("%Y-%m-%d")
+
+    recent_str = "\n\nRECENT AUDIT ROWS:\n" + sample.to_string(index=False)
+    return summary_str + recent_str
+
+
+def ai_answer(q, d):
+    if not init_gemini():
+        return "Gemini API key is not configured. Please add GEMINI_API_KEY to Streamlit Secrets."
+
+    context = make_ai_context(d)
+    current_date_str = datetime.now().strftime("%Y-%m-%d")
+
+    prompt = f"""You are the QFL4 Vehicle Audit Intelligence Assistant for Master Motors FUSO.
+CURRENT SYSTEM DATE: {current_date_str}
+
+STRICT DATA RULES:
+1. Use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions about defect types, quantities, vehicles, dates, chassis, classes (A, B, C, D), zones, and DPU.
+2. Never invent, estimate, assume, or fabricate a number or vehicle detail. Look up the exact numbers from the supplied summaries and rows.
+3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period.
+4. Respect active dashboard filters.
+5. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
+6. Keep answers concise, accurate, and fast.
+
+ACTIVE FILTERED AUDIT DATA & SUMMARIES:
+Columns: {", ".join(map(str, d.columns))}
+{context}
+
+USER QUESTION: {q}"""
+
+    try:
+        model = genai.GenerativeModel(AI_MODEL)
+        response = model.generate_content(prompt)
+        answer = response.text
+        return answer.strip() or "I could not generate an answer from the current audit data."
+    except Exception as exc:
+        return f"Gemini AI request failed: {exc}"
+
+
+def ai_answer_audio(audio_bytes, d):
+    if not init_gemini():
+        return "Gemini API key is not configured."
+
+    context = make_ai_context(d)
+    current_date_str = datetime.now().strftime("%Y-%m-%d")
+
+    prompt = f"""You are the QFL4 Vehicle Audit Intelligence Assistant for Master Motors FUSO.
+CURRENT SYSTEM DATE: {current_date_str}
+
+STRICT DATA RULES:
+1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions.
+2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
+3. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
+4. Keep answers concise and clear.
+
+ACTIVE FILTERED AUDIT DATA & SUMMARIES:
+Columns: {", ".join(map(str, d.columns))}
+{context}"""
+
+    try:
+        model = genai.GenerativeModel(AI_MODEL)
+        response = model.generate_content([
+            {"mime_type": "audio/webm", "data": audio_bytes},
+            prompt,
+        ])
+        return response.text.strip() or "I could not understand the audio recording."
+    except Exception as exc:
+        return f"Voice processing failed: {exc}"
+
+
+def speak(text):
+    safe_text = json.dumps(str(text))
+    components.html(f"""<script>speechSynthesis.cancel();const u = new SpeechSynthesisUtterance({safe_text});u.lang='en-US';speechSynthesis.speak(u);</script>""", height=1)
+
+
+def render_ai_assistant(filtered):
+    st.markdown(
+        """
+        <div class="voice-card">
+            <div class="voice-title">🎙️ AI Voice &amp; Text Assistant</div>
+            <div class="voice-subtitle">Powered by Gemini. Type your question and press Enter, or use the microphone to ask by voice.
+            Answers respect the filters selected above.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    section_header("Ask the audit assistant", "Try: “Which defect type has the highest quantity?” or “What is the DPU this month?”")
+
+    col_txt, col_mic = st.columns([12, 1], vertical_alignment="center")
+    with col_txt:
+        text_question = st.text_input("POWERED BY FQCM", placeholder="Ask anything about your audit data…", label_visibility="collapsed")
+    with col_mic:
+        audio_data = mic_recorder(
+            start_prompt="🎙️",
+            stop_prompt="⏹️",
+            just_once=True,
+            key="audit_mic",
+        )
+
+    components.html("""
+    <script>
+    const doc = window.parent.document;
+    function setupEnterKey() {
+        const inputs = doc.querySelectorAll('input[aria-label="POWERED BY FQCM"]');
+        inputs.forEach(input => {
+            if (!input.dataset.enterBound) {
+                input.dataset.enterBound = "true";
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+                        setTimeout(() => {
+                            const allBtns = doc.querySelectorAll('button');
+                            for (let b of allBtns) {
+                                if (b.textContent.includes("Send Query")) {
+                                    b.click();
+                                    break;
+                                }
+                            }
+                        }, 100);
+                    }
+                });
+            }
+        });
+    }
+    const observer = new MutationObserver(setupEnterKey);
+    observer.observe(doc.body, { childList: true, subtree: true });
+    setupEnterKey();
+    </script>
+    """, height=0)
+
+    ask_clicked = st.button("Send Query →", type="primary", use_container_width=True)
+
+    if audio_data and "bytes" in audio_data:
+        with qfl4_spinner("Processing voice recording with Gemini..."):
+            answer = ai_answer_audio(audio_data["bytes"], filtered)
+        st.markdown(f'<div class="answer-card"><div class="answer-label">AI VOICE RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
+        speak(answer)
+
+    if text_question.strip() and (ask_clicked or "last_q" not in st.session_state or st.session_state.last_q != text_question):
+        st.session_state.last_q = text_question
+        with qfl4_spinner("Analysing audit data with Gemini..."):
+            answer = ai_answer(text_question, filtered)
+        st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
+        speak(answer)
+
+
+# ============================================================
+# AUTHENTICATION CHECK
+# ============================================================
+if (
+    not st.session_state.logged_in
+    and not st.session_state.get("auth_cookie_revoked", False)
+):
+    auth_token = st.context.cookies.get(AUTH_COOKIE_NAME, "")
+    if auth_token:
+        users = load_users()
+        restored_session = restore_auth_session(auth_token, users)
+        if restored_session:
+            st.session_state.logged_in = True
+            st.session_state.user_email, st.session_state.role = restored_session
+            st.session_state.portal_loading = True
+
+if not st.session_state.logged_in:
+    login(load_users, save_users)
+    st.stop()
+
+user_email = st.session_state.get("user_email", "")
+user_profile = load_users().get(user_email, {})
+user_name = user_profile.get("name")
+if not isinstance(user_name, str) or not user_name.strip():
+    user_name = (
+        user_email.split("@")[0].replace(".", " ").replace("_", " ").title()
+        or "there"
+    )
+st.session_state.user_name = user_name.strip()
+
+# Portal design system (only after login, so the login page keeps its own styling)
+inject_portal_css()
+
+
+# ============================================================
+# LOAD DATA FROM GOOGLE SHEETS (with loading screen after login)
+# ============================================================
+show_portal_loading = st.session_state.pop("portal_loading", False)
+loading_overlay = st.empty() if show_portal_loading else None
+try:
+    if loading_overlay is not None:
+        loading_overlay.markdown(PORTAL_LOADING_HTML, unsafe_allow_html=True)
+    try:
+        df = load_excel()
+    finally:
+        if loading_overlay is not None:
+            loading_overlay.empty()
+except Exception as exc:
+    st.error("Unable to load audit data from Google Sheets.")
+    st.caption(f"Details: {type(exc).__name__}: {exc}")
+    st.info("Verify that Streamlit Secrets contains [gcp_service_account], GOOGLE_SHEET_ID is correct, the worksheet tab is named 'Audit Entries', and the service account has Editor access to the spreadsheet.")
+    st.stop()
+
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+nav_pages = [
+    "Vision & Mission",
+    "🏠 Overview",
+    "🎙️ AI Assistant",
+    "⚠️ Total Defects",
+    "📈 Pareto Analysis",
+    "🚗 Vehicle Audit",
+    "📄 Download Chassis Sheet",
+    "🧩 Class & Zone",
+    "📋 Audit Data",
+]
+if st.session_state.get("role") == "admin":
+    nav_pages += ["➕ Add Audit Data", "🗑️ Delete Audit Entry", "👥 Manage Users"]
+
+ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
+page = render_sidebar(
+    nav_pages,
+    st.session_state.get("user_email", ""),
+    st.session_state.get("role", "user"),
+    ai_ready,
+    len(df),
+)
+
+
+# ============================================================
+# VISION & MISSION
+# ============================================================
+if page == "Vision & Mission":
+    page_title(
+        "Vision & Mission",
+        "Leadership vision for digital transformation and AI-driven quality intelligence.",
+        "🎯",
+    )
+
+    col_img, col_text = st.columns([1, 2], gap="large")
+
+    with col_img:
+        photo_file = APP_DIR / "ather_ali_darbari.png"
+        if photo_file.is_file():
+            st.markdown('<div class="leader-photo-wrap">', unsafe_allow_html=True)
+            st.image(str(photo_file), use_container_width=True)
+            st.markdown(
+                """
+                <div class="leader-caption">
+                    <div class="leader-name">Mr. Ather Ali Darbari</div>
+                    <div class="leader-role">Senior General Manager</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("Please place the leadership photo in the app folder as: ather_ali_darbari.png")
+            st.markdown(
+                """
+                <div class="leader-caption">
+                    <div class="leader-name">Mr. Ather Ali Darbari</div>
+                    <div class="leader-role">Senior General Manager</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with col_text:
+        st.markdown(
+            """
+            <div class="vision-card">
+                <div class="vision-heading"><span class="vision-icon vision-icon-red">V</span>VISION</div>
+                <div class="vision-text">
+                    Leverage technology to digitalize quality processes and use
+                    Artificial Intelligence to analyse quality data, enabling smarter,
+                    faster and data-driven decision-making across the organization.
+                </div>
+            </div>
+            <div class="vision-card">
+                <div class="vision-heading"><span class="vision-icon vision-icon-blue">M</span>MISSION</div>
+                <div class="vision-text">
+                    Transform manual and disconnected quality activities into integrated
+                    digital solutions that systematically capture and analyse data,
+                    using AI to identify trends, detect problems, prioritize improvement
+                    opportunities and drive continuous quality improvement.
+                </div>
+            </div>
+            <div class="vision-card">
+                <div class="vision-heading"><span class="vision-icon vision-icon-gold">→</span>DIGITAL QUALITY APPROACH</div>
+                <div class="vision-text approach-text">
+                    Digitalize &nbsp;→&nbsp; Collect Data &nbsp;→&nbsp; Analyse with AI
+                    &nbsp;→&nbsp; Identify Trends &nbsp;→&nbsp; Take Action &nbsp;→&nbsp; Continuous Improvement
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    render_footer()
+    st.stop()
+
+
+# ============================================================
+# ADMIN PAGE: MANAGE USERS
+# ============================================================
+if page == "👥 Manage Users":
+    if st.session_state.get("role") != "admin":
+        st.error("Access denied. You do not have administrator privileges.")
+        st.stop()
+
+    page_title("User Approvals", "Approve or reject pending account registration requests.", "👥")
+    render_user_approvals(load_users(), save_users)
+    st.stop()
+
+
+# ============================================================
+# ADMIN PAGE: DELETE AUDIT ENTRY
+# ============================================================
+if page == "🗑️ Delete Audit Entry":
+    if st.session_state.get("role") != "admin":
+        st.error("Access denied. Administrator privileges are required to access this page.")
+        st.stop()
+
+    page_title("Delete Audit Entry", "Select a chassis record to permanently delete it.", "🗑️")
+    try:
+        load_excel.clear()
+        df_delete = load_excel()
+        chassis_col_delete = find_col(df_delete, ["Chassis No", "Chassis", "Chassis Number"])
+        if not chassis_col_delete:
+            st.error("The Chassis No. column was not found in the spreadsheet.")
+        else:
+            chassis_values = (
+                df_delete[chassis_col_delete]
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+            chassis_values = chassis_values[chassis_values != ""]
+            unique_chassis = sorted(chassis_values.unique().tolist())
+
+            if not unique_chassis:
+                st.info("No chassis entries are available to delete.")
+            else:
+                with st.container(border=True):
+                    selected_chassis_delete = st.selectbox("Select Chassis Number", unique_chassis)
+                    matching_delete_rows = df_delete.index[
+                        df_delete[chassis_col_delete].fillna("").astype(str).str.strip().str.casefold()
+                        == selected_chassis_delete.casefold()
+                    ].tolist()
+                    st.warning(
+                        f"Deleting chassis **{selected_chassis_delete}** will permanently remove {len(matching_delete_rows)} row(s) "
+                        "and all associated defect details."
+                    )
+                    confirm_delete = st.checkbox(
+                        "I understand this action cannot be undone.",
+                        key="confirm_delete_chassis_entry",
+                    )
+                    if st.button(
+                        "Delete Selected Chassis Entry",
+                        type="primary",
+                        use_container_width=True,
+                        disabled=not confirm_delete,
+                    ):
+                        df_delete = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
+                        save_google_sheet(df_delete)
+                        st.success(f"All audit entries for chassis {selected_chassis_delete} were deleted successfully.")
+                        st.rerun()
+    except Exception as exc:
+        st.error(f"An error occurred while deleting the audit entry: {exc}")
+    st.stop()
+
+
+# ============================================================
+# ADMIN PAGE: ADD AUDIT DATA
+# ============================================================
+if page == "➕ Add Audit Data":
+    # Clear the previous entry on the rerun after a successful save.
+    # This runs before the page widgets are created, so Streamlit permits state updates.
+    if st.session_state.pop("clear_audit_form_on_rerun", False):
+        st.session_state["nomenclature_rows_count"] = 1
+        st.session_state["audit_date_live"] = datetime.now().date()
+        st.session_state["vehicle_name_live"] = "FUSO Canter"
+        st.session_state["model_name_live"] = "FE84"
+        st.session_state["chassis_no_vehicle_details"] = ""
+        st.session_state["engine_no_live"] = ""
+        for key, default in {
+            "fluid_clutch": "✓",
+            "fluid_engine": "✓",
+            "fluid_brake": "✓",
+            "fluid_llc": "✓",
+            "fluid_washer": "✓",
+        }.items():
+            st.session_state[key] = default
+        for idx in range(30):
+            st.session_state[f"entry_type_{idx}"] = "Safety"
+            st.session_state[f"entry_category_{idx}"] = "Over Tightening"
+            st.session_state[f"entry_department_{idx}"] = "Weld Shop"
+            st.session_state[f"entry_qty_{idx}"] = 1
+            st.session_state[f"entry_class_{idx}"] = "A"
+            st.session_state[f"entry_zone_{idx}"] = "A"
+            st.session_state[f"nomenclature_vloc_{idx}"] = "RH"
+            st.session_state[f"nomenclature_area_{idx}"] = "Side"
+            st.session_state[f"nomenclature_part_{idx}"] = ""
+            st.session_state[f"nomenclature_ploc_{idx}"] = "RH"
+            st.session_state[f"nomenclature_defect_{idx}"] = ""
+
+    if st.session_state.get("role") != "admin":
+        st.error("Access denied. Administrator privileges are required to access this page.")
+        st.stop()
+
+    page_title("Admin Data Entry", "Create a new audit record.", "➕")
+
+    # Keep the defect rows horizontal and let the admin choose how many
+    # nomenclature entries belong to this chassis.
+    defect_rows_count = st.number_input(
+        "Number of Defects for this Chassis",
+        min_value=1,
+        max_value=30,
+        value=1,
+        step=1,
+        key="nomenclature_rows_count",
+    )
+
+    # Chassis input intentionally stays OUTSIDE the form so Streamlit reruns
+    # on every edit and duplicate feedback appears beside this one field.
+    section_header("Vehicle / audit details")
+    with st.container(border=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            audit_date = st.date_input("Date", datetime.now(), key="audit_date_live")
+            vehicle_name = st.text_input("Vehicle Name", "FUSO Canter", key="vehicle_name_live")
+            model_name = st.text_input("Model", "FE84", key="model_name_live")
+        with c2:
+            chassis_no = st.text_input("Chassis No.", "", key="chassis_no_vehicle_details")
+            engine_no = st.text_input("Engine No.", placeholder="Enter engine number", key="engine_no_live")
+
+    def _normalize_chassis(value):
+        if pd.isna(value):
+            return ""
+        return re.sub(r"[^a-z0-9]", "", str(value).strip().casefold())
+
+    chassis_key_live = _normalize_chassis(chassis_no)
+    duplicate_chassis_live = False
+    if chassis_key_live:
+        try:
+            df_chassis_live = load_excel()
+            chassis_col_live = find_col(df_chassis_live, ["Chassis No", "Chassis Number", "Chassis"])
+            if chassis_col_live:
+                existing_live = df_chassis_live[chassis_col_live].map(_normalize_chassis)
+                duplicate_chassis_live = bool((existing_live.ne("") & existing_live.eq(chassis_key_live)).any())
+            else:
+                st.error("The Chassis No column was not found. Please verify the column heading.")
+        except Exception as exc:
+            st.error(f"Unable to check for duplicate chassis numbers: {exc}")
+    if duplicate_chassis_live:
+        st.error("This chassis number is already entered.")
+
+    with st.form("add_data_form"):
+
+        st.markdown("### Fluid Check")
+        st.caption("Select a check mark (✓) or cross (✗) for each item.")
+        fc1, fc2, fc3, fc4, fc5 = st.columns(5)
+        with fc1:
+            fluid_clutch = st.selectbox("CLUTCH", ["✓", "✗"], key="fluid_clutch")
+        with fc2:
+            fluid_engine = st.selectbox("E/G", ["✓", "✗"], key="fluid_engine")
+        with fc3:
+            fluid_brake = st.selectbox("BRAKE", ["✓", "✗"], key="fluid_brake")
+        with fc4:
+            fluid_llc = st.selectbox("LLC", ["✓", "✗"], key="fluid_llc")
+        with fc5:
+            fluid_washer = st.selectbox("WASHER", ["✓", "✗"], key="fluid_washer")
+
+        fluid_checks = {
+            "Fluid Check - Clutch": fluid_clutch,
+            "Fluid Check - E/G": fluid_engine,
+            "Fluid Check - Brake": fluid_brake,
+            "Fluid Check - LLC": fluid_llc,
+            "Fluid Check - Washer": fluid_washer,
+        }
+
+        st.markdown("### Defect Nomenclature")
+        st.caption(
+            "Enter the Defect Type and Defect Category separately for each entry. "
+            "Department, Class, Zone, Quantity and the nomenclature details are recorded with it."
+        )
+
+        nomenclature_entries = []
+        for idx in range(int(defect_rows_count)):
+            with st.container(border=True):
+                st.markdown(f"**Defect Entry {idx + 1}**")
+                a1, a2 = st.columns(2)
+                with a1:
+                    entry_type = st.selectbox(
+                        "Defect Type",
+                        ["Safety", "Functional", "Major Aesthetics", "Minor Aesthetics"],
+                        key=f"entry_type_{idx}",
+                    )
+                with a2:
+                    entry_category = st.selectbox(
+                        "Defect Category",
+                        [
+                            "Over Tightening", "Looseness", "Scratch", "Rust",
+                            "Improperly installed", "Weld Spot Burr", "Weld Spot Miss",
+                            "Sag", "Run", "Dent", "Bump", "Spot Miss", "Seepage",
+                            "Leakage", "Crater", "Thin Paint", "Part Miss",
+                            "Harness Routing Wrong", "Wrong Part", "Deformation",
+                            "Gap NG", "Indicator not work", "Wrinkles",
+                            "Torque Mark Miss", "Other",
+                        ],
+                        key=f"entry_category_{idx}",
+                    )
+                a3, a4 = st.columns(2)
+                with a3:
+                    department = st.selectbox(
+                        "Department",
+                        [
+                            "Weld Shop", "Paint Shop", "Assembly Shop", "Tester Line",
+                            "Final Confirmation", "QA Receiving", "CKD",
+                        ],
+                        key=f"entry_department_{idx}",
+                    )
+                with a4:
+                    entry_qty = st.number_input("Total Defect Quantity (QTY)", min_value=1, value=1,
+                                                step=1, key=f"entry_qty_{idx}")
+
+                b1, b2, b3 = st.columns(3)
+                with b1:
+                    entry_class = st.selectbox("Defect Class", ["A", "B", "C", "D"],
+                                               key=f"entry_class_{idx}")
+                with b2:
+                    entry_zone = st.selectbox("Zone", ["A", "B", "C", "D"],
+                                              key=f"entry_zone_{idx}")
+                with b3:
+                    vloc = st.selectbox("Vehicle Location", ["RH", "LH", "FR", "RR"],
+                                        key=f"nomenclature_vloc_{idx}")
+
+                v4, v5, v6, v7 = st.columns([1, 1.2, 1, 1.6])
+                with v4:
+                    area = st.selectbox("Area", ["Side", "Upper Side", "Lower Side"],
+                                        key=f"nomenclature_area_{idx}")
+                with v5:
+                    part = st.text_input("Part Name", placeholder="Part name",
+                                         key=f"nomenclature_part_{idx}")
+                with v6:
+                    ploc = st.selectbox("Part Location", ["RH", "LH", "FR", "RR"],
+                                        key=f"nomenclature_ploc_{idx}")
+                with v7:
+                    defect = st.text_input("Defect Description", placeholder="Defect description",
+                                           key=f"nomenclature_defect_{idx}")
+
+            nomenclature_entries.append({
+                "type": entry_type.strip(), "category": entry_category.strip(),
+                "department": department.strip(), "qty": int(entry_qty), "class": entry_class, "zone": entry_zone,
+                "vloc": vloc, "area": area, "part": part.strip(),
+                "ploc": ploc, "defect": defect.strip(),
+            })
+
+        submitted = st.form_submit_button(
+            "Save All Defects to Google Sheets", type="primary", use_container_width=True
+        )
+
+        if submitted:
+            if duplicate_chassis_live:
+                st.error("This chassis number is already entered.")
+                st.stop()
+            try:
+                if not str(chassis_no).strip():
+                    st.error("Please enter a chassis number.")
+                    st.stop()
+                load_excel.clear()  # always save against the freshest sheet data
+                df_existing = load_excel()
+                df_existing.columns = (
+                    df_existing.columns.astype(str).str.strip()
+                    .str.replace("\n", " ", regex=False)
+                    .str.replace(r"\s+", " ", regex=True)
+                )
+
+                valid_entries = []
+                for item in nomenclature_entries:
+                    if not item["part"] and not item["defect"] and not item["type"] and not item["category"] and not item["department"]:
+                        continue
+                    if not item["type"] or not item["category"] or not item["department"] or not item["part"] or not item["defect"]:
+                        st.error("Each completed entry must include Defect Type, Defect Category, Department, Part Name, and Defect Description.")
+                        st.stop()
+                    valid_entries.append(item)
+
+                if not valid_entries:
+                    st.error("Please enter at least one complete defect entry.")
+                    st.stop()
+
+                # Defect N columns contain ONLY the five-part nomenclature.
+                # Other details remain in their own numbered columns
+                # (Defect Type N, Department N, etc.).
+                nomenclatures = [
+                    f'{x["vloc"]} | {x["area"]} | {x["part"]} | {x["ploc"]} | {x["defect"]}'
+                    for x in valid_entries
+                ]
+                total_qty = sum(x["qty"] for x in valid_entries)
+                first = valid_entries[0]
+
+                # Assign a sequential control number for each new chassis record.
+                control_col_existing = find_col(df_existing, ["Control Number", "Control No", "Control #"])
+                control_values = (
+                    df_existing[control_col_existing].dropna().astype(str).str.strip().tolist()
+                    if control_col_existing else []
+                )
+                used_numbers = []
+                for control_value in control_values:
+                    match_control = re.search(r"(\d+)\s*$", control_value)
+                    if match_control:
+                        used_numbers.append(int(match_control.group(1)))
+                next_control_number = max(used_numbers or [0]) + 1
+                generated_control = f"QFL4-{pd.to_datetime(audit_date):%Y%m%d}-{next_control_number:04d}"
+
+                new_entry = {
+                    "Control Number": generated_control,
+                    "Date": pd.to_datetime(audit_date),
+                    "Vehicle": vehicle_name,
+                    "Model": model_name,
+                    "Chassis No": str(chassis_no).strip(),
+                    "Engine No": str(engine_no).strip(),
+                    "Defect Type": first["type"],
+                    "Department": first["department"],
+                    "Defect Category": first["category"],
+                    "QTY": total_qty,
+                    **fluid_checks,
+                }
+
+                for cls in "ABCD":
+                    amount = sum(x["qty"] for x in valid_entries if x["class"] == cls)
+                    class_col_name = f"CLASS {cls}"
+                    if class_col_name in df_existing.columns:
+                        new_entry[class_col_name] = amount
+                for zone in "ABCD":
+                    amount = sum(x["qty"] for x in valid_entries if x["zone"] == zone)
+                    zone_col_name = f"ZONE {zone}"
+                    if zone_col_name in df_existing.columns:
+                        new_entry[zone_col_name] = amount
+
+                existing_defect_cols = [
+                    c for c in df_existing.columns
+                    if re.fullmatch(r"Defect\s*\d+", str(c).strip(), flags=re.IGNORECASE)
+                ]
+                highest_existing = max(
+                    [int(re.search(r"\d+", str(c)).group()) for c in existing_defect_cols] or [0]
+                )
+                required_defect_count = max(highest_existing, len(nomenclatures))
+                for n in range(1, required_defect_count + 1):
+                    col = f"Defect {n}"
+                    if col not in df_existing.columns:
+                        df_existing[col] = pd.NA
+
+                # Store separate metadata columns for every nomenclature entry.
+                for n, item in enumerate(valid_entries, start=1):
+                    for field, value in [
+                        ("Defect Type", item["type"]), ("Defect Category", item["category"]),
+                        ("Department", item["department"]), ("Defect Class", item["class"]),
+                        ("Zone", item["zone"]), ("QTY", item["qty"]),
+                    ]:
+                        col = f"{field} {n}"
+                        if col not in df_existing.columns:
+                            df_existing[col] = pd.NA
+
+                # Reliable duplicate check: match the chassis-specific column only,
+                # normalize case and remove spaces/punctuation on both sides.
+                chassis_col_save = find_col(df_existing, ["Chassis No", "Chassis Number", "Chassis"])
+                chassis_key = _normalize_chassis(chassis_no)
+                if not chassis_col_save:
+                    st.error("The Chassis No column was not found. Please verify the column heading.")
+                    st.stop()
+                existing_chassis = df_existing[chassis_col_save].map(_normalize_chassis)
+                if (existing_chassis.ne("") & existing_chassis.eq(chassis_key)).any():
+                    st.error("This chassis number is already entered.")
+                    st.stop()
+
+                for n, nomenclature in enumerate(nomenclatures, start=1):
+                    new_entry[f"Defect {n}"] = nomenclature
+                for n, item in enumerate(valid_entries, start=1):
+                    for field, value in [
+                        ("Defect Type", item["type"]), ("Defect Category", item["category"]),
+                        ("Department", item["department"]), ("Defect Class", item["class"]),
+                        ("Zone", item["zone"]), ("QTY", item["qty"]),
+                    ]:
+                        new_entry[f"{field} {n}"] = value
+                for col in df_existing.columns:
+                    if col not in new_entry:
+                        new_entry[col] = pd.NA
+                for col in new_entry:
+                    if col not in df_existing.columns:
+                        df_existing[col] = pd.NA
+                df_existing = pd.concat(
+                    [df_existing, pd.DataFrame([{col: new_entry.get(col, pd.NA) for col in df_existing.columns}])],
+                    ignore_index=True,
+                )
+
+                save_google_sheet(df_existing)
+                st.session_state["audit_save_notice"] = (
+                    f"{len(valid_entries)} defect entr"
+                    f"{'y' if len(valid_entries) == 1 else 'ies'} recorded for chassis "
+                    f"{str(chassis_no).strip()}. The form is ready for the next audit."
+                )
+                st.session_state["clear_audit_form_on_rerun"] = True
+                st.rerun()
+            except Exception as e:
+                st.error(f"An error occurred while saving the data: {e}")
+
+    st.stop()
+
+
+# ============================================================
+# PAGE HEADER (all analytics pages)
+# ============================================================
+render_page_header(page, df, st.session_state.get("user_email", ""))
+
+
+# ============================================================
+# DOWNLOAD ONE COMPLETED AUDIT SHEET PER CHASSIS
+# ============================================================
+if page == "📄 Download Chassis Sheet":
+    page_title("Download Chassis Audit Sheet", "Select a chassis number to populate and download the original FUSO audit template.", "📄")
+
+    chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
+    if not chassis_col or df.empty:
+        st.warning("The Chassis No. column or audit records could not be found.")
+        st.stop()
+
+    chassis_values = sorted(
+        df[chassis_col].dropna().astype(str).str.strip().loc[lambda s: s.ne("")].unique().tolist()
+    )
+    if not chassis_values:
+        st.info("No chassis records are currently available.")
+        st.stop()
+
+    with st.container(border=True):
+        chosen_chassis = st.selectbox("Select chassis number", chassis_values)
+    vehicle_rows = df[df[chassis_col].fillna("").astype(str).str.strip() == chosen_chassis]
+    vehicle = vehicle_rows.iloc[0]
+
+    # Resolve the template relative to this Python file, not the current working directory.
+    template_path = APP_DIR / TEMPLATE_FILENAME
+    if not template_path.is_file():
+        nearby_xlsx = sorted(p.name for p in APP_DIR.glob("*.xlsx"))
+        st.error(
+            f"Audit template file not found. Expected file: {TEMPLATE_FILENAME} "
+            f"\nApp folder: {APP_DIR}"
+        )
+        if nearby_xlsx:
+            st.caption("Available .xlsx files in the application folder: " + ", ".join(nearby_xlsx))
+        st.info(
+            "Upload the template to the same root folder of the GitHub repository as the main "
+            "Streamlit Python file. The filename must match exactly."
+        )
+        st.stop()
+
+    section_header("Vehicle details preview")
+    preview_cols = [c for c in [
+        find_col(df, ["Date"]), find_col(df, ["Model", "Model Name"]),
+        find_col(df, ["Engine", "Engine No", "Engine Number"]), chassis_col,
+    ] if c]
+    preview = vehicle_rows[preview_cols].head(1).copy()
+    for c in preview.columns:
+        if pd.api.types.is_datetime64_any_dtype(preview[c]):
+            preview[c] = preview[c].dt.strftime("%d %b %Y")
+    st.dataframe(preview, use_container_width=True, hide_index=True)
+
+    if st.button("Prepare Chassis Sheet", type="primary", use_container_width=True):
+        try:
+            from io import BytesIO
+            import openpyxl
+            from copy import copy as _copy
+            from openpyxl.cell.cell import MergedCell
+            from openpyxl.styles import Alignment
+
+            template_wb = openpyxl.load_workbook(str(template_path))
+            template_ws = template_wb[template_wb.sheetnames[0]]
+
+            # Updated FUSO templates may have different merged-cell layouts.
+            # Always write to the top-left (anchor) cell of a merged range.
+            def safe_set_cell(ws, coordinate, value):
+                cell = ws[coordinate]
+                if isinstance(cell, MergedCell):
+                    for merged_range in ws.merged_cells.ranges:
+                        if coordinate in merged_range:
+                            cell = ws.cell(merged_range.min_row, merged_range.min_col)
+                            break
+                cell.value = value
+                return cell
+
+            def cell_value(row, names, default=""):
+                col = find_col(vehicle_rows, names)
+                if not col:
+                    return default
+                value = vehicle.get(col, default)
+                if pd.isna(value):
+                    return default
+                if isinstance(value, (pd.Timestamp, datetime)):
+                    return value.strftime("%d-%m-%Y")
+                return str(value).strip()
+
+            model_value = cell_value(0, ["Model", "Model Name"])
+            date_value = cell_value(0, ["Date"])
+            engine_value = cell_value(0, ["Engine", "Engine No", "Engine Number", "Engine#"])
+            # Write only into existing template header cells; keep all layout/styles unchanged.
+            safe_set_cell(template_ws, "A3", f"MODEL: {model_value}")
+            safe_set_cell(template_ws, "H3", f"DATE: {date_value}")
+            safe_set_cell(template_ws, "A4", f"ENGINE# {engine_value}")
+            safe_set_cell(template_ws, "H4", f"CHASSIS NO.: {chosen_chassis}")
+
+            defect_columns = []
+            for col_name in vehicle_rows.columns:
+                match = re.fullmatch(r"Defect\s*(\d+)", str(col_name).strip(), flags=re.I)
+                if match:
+                    defect_columns.append((int(match.group(1)), col_name))
+            defect_columns.sort()
+
+            # The FUSO template has defect rows 7-38, fluid labels on row 39,
+            # and the fluid check marks on row 40. Preserve the existing merged layout.
+            for r in range(7, 39):
+                safe_set_cell(template_ws, f"A{r}", r - 6)
+                safe_set_cell(template_ws, f"B{r}", None)
+                safe_set_cell(template_ws, f"G{r}", None)
+                # Keep the template's printed A/B/C/D checkbox labels in H:K.
+                safe_set_cell(template_ws, f"L{r}", None)
+
+            # IMPORTANT: Control Number is permanent in the original template.
+            # Do not generate, overwrite, move, restyle, unmerge, or re-merge its cells.
+
+            filled = 0
+            for n, defect_col_name in defect_columns:
+                defect_text = vehicle.get(defect_col_name)
+                if pd.isna(defect_text) or not str(defect_text).strip() or str(defect_text).strip().lower() == "nan":
+                    continue
+                if filled >= 32:
+                    break
+                row_num = 7 + filled
+                # Defect nomenclature is displayed in the merged B:F field.
+                safe_set_cell(template_ws, f"B{row_num}", str(defect_text).strip())
+
+                dept_col = find_col(vehicle_rows, [f"Department {n}", "Department"])
+                dept_value = vehicle.get(dept_col, "") if dept_col else ""
+                if not pd.isna(dept_value) and str(dept_value).strip():
+                    safe_set_cell(template_ws, f"G{row_num}", str(dept_value).strip())
+
+                class_col = find_col(vehicle_rows, [f"Defect Class {n}", f"Class {n}"])
+                class_value = vehicle.get(class_col, "") if class_col else ""
+                if (pd.isna(class_value) or not str(class_value).strip()) and n == 1:
+                    class_col = find_col(vehicle_rows, ["Defect Class", "Class"])
+                    class_value = vehicle.get(class_col, "") if class_col else ""
+                class_value = str(class_value).strip().upper() if not pd.isna(class_value) else ""
+                if class_value in ("A", "B", "C", "D"):
+                    class_cell = template_ws.cell(row_num, 8 + "ABCD".index(class_value))
+                    safe_set_cell(template_ws, class_cell.coordinate, f"☑{class_value}")
+                filled += 1
+
+            # Fluid checks come from Audit Entries; only tick/cross marks are printed.
+            fluid_template_columns = [
+                ("Fluid Check - Clutch", "B40"),
+                ("Fluid Check - E/G", "C40"),
+                ("Fluid Check - Brake", "D40"),
+                ("Fluid Check - LLC", "E40"),
+                ("Fluid Check - Washer", "F40"),
+            ]
+            for source_name, target_cell in fluid_template_columns:
+                # Reflect the saved audit value: tick for ✓, cross for ✗, blank if no value exists.
+                raw_fluid_value = vehicle.get(source_name, "")
+                fluid_value = "" if pd.isna(raw_fluid_value) else str(raw_fluid_value).strip()
+                mark = "✓" if fluid_value == "✓" else ("✗" if fluid_value == "✗" else "")
+                cell = safe_set_cell(template_ws, target_cell, mark)
+                existing_font = _copy(cell.font)
+                existing_font.name = "Arial"
+                existing_font.sz = 14
+                existing_font.bold = True
+                cell.font = existing_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            template_ws.print_area = "A1:L40"
+            template_ws.page_setup.fitToWidth = 1
+            template_ws.page_setup.fitToHeight = 1
+            template_ws.sheet_properties.pageSetUpPr.fitToPage = True
+            output = BytesIO()
+            template_wb.save(output)
+            output.seek(0)
+            safe_chassis = re.sub(r"[^A-Za-z0-9_-]+", "_", chosen_chassis)
+            st.download_button(
+                "⬇️ Download Excel Sheet",
+                data=output.getvalue(),
+                file_name=f"FUSO_Audit_{safe_chassis}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+            st.success(f"Sheet ready: {filled} defect row(s) filled. Control Number, A/B/C/D classification, fluid tick/cross marks, and signature area are included.")
+            st.caption("The coordinator signature field is intentionally left blank.")
+        except Exception as exc:
+            st.error(f"Unable to prepare the audit sheet: {exc}")
+    st.stop()
+
+
+# ============================================================
+# SHARED FILTERS
+# ============================================================
+section_header("Audit filters", "Refine every chart, KPI and table on this page")
+
+date_col = find_col(df, ["Date"])
+model_col = find_col(df, ["Model", "Model Name"])
+chassis_col = find_col(df, ["Chassis No", "Chassis", "Chassis Number"])
+defect_col = find_col(df, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+category_col = find_col(df, ["Defect Category", "Category"])
+qty_col = find_col(df, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+
+# Month / Year and exact Date filters can be combined; the dashboard shows
+# the intersection of the selected month(s) and exact date(s).
+f1, f2, f3, f4 = st.columns(4)
+
+with f1:
+    if date_col:
+        month_periods = (
+            df[date_col].dropna().dt.to_period("M").drop_duplicates().sort_values(ascending=False).tolist()
+        )
+        month_year_options = [p.strftime("%B %Y") for p in month_periods]
+        selected_month_year = st.multiselect("Month & Year", month_year_options, placeholder="All months")
+    else:
+        selected_month_year = []
+
+with f2:
+    if date_col:
+        exact_dates = (
+            df[date_col].dropna().dt.normalize().drop_duplicates().sort_values(ascending=False).tolist()
+        )
+        date_options = [d.strftime("%d %B %Y") for d in exact_dates]
+        selected_dates = st.multiselect("Audit Date", date_options, placeholder="All dates")
+    else:
+        selected_dates = []
+
+with f3:
+    model_options = sorted(df[model_col].dropna().astype(str).unique().tolist()) if model_col else []
+    selected_model = st.selectbox("Model", ["All"] + model_options)
+
+with f4:
+    chassis_options = sorted(df[chassis_col].dropna().astype(str).unique().tolist()) if chassis_col else []
+    selected_chassis = st.selectbox("Chassis No.", ["All"] + chassis_options)
+
+filtered = df.copy()
+
+if selected_month_year and date_col:
+    selected_periods = {pd.to_datetime(v, format="%B %Y").to_period("M") for v in selected_month_year}
+    filtered = filtered[filtered[date_col].dt.to_period("M").isin(selected_periods)]
+
+if selected_dates and date_col:
+    selected_date_values = {pd.to_datetime(v, format="%d %B %Y").normalize() for v in selected_dates}
+    filtered = filtered[filtered[date_col].dt.normalize().isin(selected_date_values)]
+
+if selected_model != "All" and model_col:
+    filtered = filtered[filtered[model_col].astype(str) == selected_model]
+if selected_chassis != "All" and chassis_col:
+    filtered = filtered[filtered[chassis_col].astype(str) == selected_chassis]
+
+
+# ============================================================
+# SHARED PARETO SUMMARY HELPER
+# ============================================================
+def build_pareto_summary(data, label_col):
+    """Count each numbered defect entry independently; fallback to base columns for legacy rows."""
+    if not label_col or not qty_col:
+        return None
+    numbered = []
+    for c in data.columns:
+        m = re.fullmatch(re.escape(label_col) + r"\s+(\d+)", str(c).strip(), flags=re.IGNORECASE)
+        if m:
+            numbered.append((int(m.group(1)), c))
+    numbered.sort()
+    rows = []
+    if numbered:
+        for _, row in data.iterrows():
+            found_numbered = False
+            for n, c in numbered:
+                label = str(row.get(c, "") if pd.notna(row.get(c, pd.NA)) else "").strip()
+                qcol = next((x for x in data.columns if str(x).strip().lower() == f"qty {n}".lower()), None)
+                q = pd.to_numeric(pd.Series([row.get(qcol, 0) if qcol else 0]), errors="coerce").fillna(0).iloc[0]
+                if label and label.lower() not in ("nan", "none"):
+                    rows.append({label_col: label, qty_col: float(q)})
+                    found_numbered = True
+            if not found_numbered:
+                label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
+                q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
+                if label and label.lower() not in ("nan", "none"):
+                    rows.append({label_col: label, qty_col: float(q)})
+    else:
+        for _, row in data.iterrows():
+            label = str(row.get(label_col, "") if pd.notna(row.get(label_col, pd.NA)) else "").strip()
+            q = pd.to_numeric(pd.Series([row.get(qty_col, 0)]), errors="coerce").fillna(0).iloc[0]
+            if label and label.lower() not in ("nan", "none"):
+                rows.append({label_col: label, qty_col: float(q)})
+    if not rows:
+        return pd.DataFrame(columns=[label_col, qty_col])
+    out = pd.DataFrame(rows).groupby(label_col, as_index=False)[qty_col].sum()
+    return out.sort_values(qty_col, ascending=False).reset_index(drop=True)
+
+
+# Column / function bundles used by the page renderers in portal_ui.py
+C = SimpleNamespace(
+    defect=defect_col, category=category_col, qty=qty_col,
+    model=model_col, chassis=chassis_col, date=date_col,
+)
+F = SimpleNamespace(
+    vehicle_count=vehicle_count, total_defects=total_defects, ab_total=ab_total,
+    calculate_dpu=calculate_dpu, class_total=class_total, zone_total=zone_total,
+    build_pareto_summary=build_pareto_summary,
+)
+
+
+# ============================================================
+# PAGE ROUTER
+# ============================================================
+if page == "🏠 Overview":
+    render_overview(filtered, C, F)
+elif page == "⚠️ Total Defects":
+    render_total_defects(filtered, C, F)
+elif page == "🧩 Class & Zone":
+    render_class_zone(filtered, C, F)
+elif page == "📈 Pareto Analysis":
+    render_pareto(filtered, C, F)
+elif page == "🎙️ AI Assistant":
+    render_ai_assistant(filtered)
+elif page in ("🚗 Vehicle Audit", "📋 Audit Data"):
+    render_audit_records(filtered, SHEET_NAME)
+
+render_footer()
