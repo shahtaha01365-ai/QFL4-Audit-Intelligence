@@ -92,7 +92,6 @@ def set_auth_cookie(token: str) -> None:
         window.parent.document.cookie =
             "qfl4_auth=" + {encoded_token} +
             "; Path=/; Max-Age={AUTH_COOKIE_TTL_SECONDS}; SameSite=Lax" + secure;
-        window.setTimeout(() => window.parent.location.reload(), 100);
         </script>
         """,
         unsafe_allow_javascript=True,
