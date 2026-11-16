@@ -7,3 +7,4 @@ streamlit-mic-recorder>=0.0.8
 gspread
 google-auth
 requests
+reportlab>=4.2

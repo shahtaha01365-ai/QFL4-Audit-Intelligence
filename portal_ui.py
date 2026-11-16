@@ -841,18 +841,226 @@ def render_pareto(filtered, C, F):
     _pareto_block(pareto_cat, C.category, C.qty, "defect category", "Priority action - defect category", "#0ea5e9", "#7c5cbf")
 
 
+def _pdf_cell(value):
+    if value is None or pd.isna(value):
+        return ""
+    # ReportLab's built-in Helvetica font uses WinAnsi; replace unsupported
+    # symbols so an unusual cell value cannot prevent a report download.
+    text = str(value).encode("cp1252", errors="replace").decode("cp1252")
+    return html.escape(text).replace("\n", "<br/>")
+
+
+@st.cache_data(show_spinner=False)
+def _build_audit_report_pdf(report_data, date_col, period_label):
+    from io import BytesIO
+
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    output = BytesIO()
+    page_size = landscape(A4)
+    margin = 24
+    doc = SimpleDocTemplate(
+        output, pagesize=page_size, rightMargin=margin, leftMargin=margin,
+        topMargin=36, bottomMargin=30, title=f"QFL4 audit report - {period_label}",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "QFL4Title", parent=styles["Title"], fontName="Helvetica-Bold",
+        fontSize=17, leading=21, textColor=colors.HexColor("#0f1b2d"), alignment=TA_LEFT,
+    )
+    body_style = ParagraphStyle(
+        "QFL4Body", parent=styles["BodyText"], fontName="Helvetica",
+        fontSize=8, leading=10, textColor=colors.HexColor("#243449"),
+    )
+    cell_style = ParagraphStyle(
+        "QFL4Cell", parent=body_style, fontSize=7, leading=9,
+    )
+
+    chassis_col = _find(report_data, ["Chassis No", "Chassis Number", "Chassis"])
+    vehicle_col = _find(report_data, ["Vehicle", "Vehicle Name"])
+    model_col = _find(report_data, ["Model", "Model Name"])
+    qty_col = _find(report_data, ["QTY", "Quantity", "Defect Qty", "Defect Quantity"])
+    defect_cols = []
+    for col in report_data.columns:
+        match = re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE)
+        if match:
+            defect_cols.append((int(match.group(1)), col))
+    defect_cols.sort()
+    base_defect_col = _find(report_data, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
+
+    def value_for(row, col):
+        if not col:
+            return ""
+        value = row.get(col, "")
+        if pd.isna(value) or str(value).strip().lower() in ("", "nan", "none"):
+            return ""
+        return str(value).strip()
+
+    table_rows = [[
+        Paragraph("<b>Date</b>", cell_style),
+        Paragraph("<b>Vehicle / chassis</b>", cell_style),
+        Paragraph("<b>Model</b>", cell_style),
+        Paragraph("<b>Defect details</b>", cell_style),
+    ]]
+    for _, row in report_data.iterrows():
+        raw_date = row.get(date_col, "")
+        parsed_date = pd.to_datetime(raw_date, errors="coerce")
+        date_text = parsed_date.strftime("%d %b %Y") if pd.notna(parsed_date) else str(raw_date)
+        identity = "<br/>".join(filter(None, [
+            _pdf_cell(value_for(row, vehicle_col)),
+            f"Chassis: {_pdf_cell(value_for(row, chassis_col))}" if value_for(row, chassis_col) else "",
+        ])) or "-"
+        details = []
+        for number, col in defect_cols:
+            defect = value_for(row, col)
+            if not defect:
+                continue
+            meta = []
+            for label, names in (
+                ("Type", [f"Defect Type {number}"]),
+                ("Category", [f"Defect Category {number}"]),
+                ("Dept", [f"Department {number}"]),
+                ("Class", [f"Defect Class {number}", f"Class {number}"]),
+                ("Zone", [f"Zone {number}"]),
+                ("Qty", [f"QTY {number}", f"Quantity {number}"]),
+            ):
+                meta_col = _find(report_data, names)
+                meta_value = value_for(row, meta_col)
+                if meta_value:
+                    meta.append(f"{label}: {_pdf_cell(meta_value)}")
+            details.append(f"<b>Defect {number}:</b> {_pdf_cell(defect)}" + (f"<br/><font color='#64748b'>{' | '.join(meta)}</font>" if meta else ""))
+        if not defect_cols and base_defect_col:
+            defect = value_for(row, base_defect_col)
+            if defect:
+                details.append(_pdf_cell(defect))
+        if not details:
+            details.append("No defect details recorded")
+        table_rows.append([
+            Paragraph(_pdf_cell(date_text) or "-", cell_style),
+            Paragraph(identity, cell_style),
+            Paragraph(_pdf_cell(value_for(row, model_col)) or "-", cell_style),
+            Paragraph("<br/><br/>".join(details), cell_style),
+        ])
+
+    dates = pd.to_datetime(report_data[date_col], errors="coerce").dropna()
+    date_range = dates.min().strftime("%d %b %Y")
+    if dates.min().date() != dates.max().date():
+        date_range += f" to {dates.max().strftime('%d %b %Y')}"
+    vehicle_count = report_data[chassis_col].nunique() if chassis_col else len(report_data)
+    total_qty = pd.to_numeric(report_data[qty_col], errors="coerce").fillna(0).sum() if qty_col else 0
+
+    story = [
+        Paragraph("QFL4 audit report", title_style),
+        Spacer(1, 4),
+        Paragraph(
+            f"<b>Period:</b> {_pdf_cell(period_label)} &nbsp;&nbsp; "
+            f"<b>Audit dates:</b> {_pdf_cell(date_range)} &nbsp;&nbsp; "
+            f"<b>Records:</b> {len(report_data):,} &nbsp;&nbsp; "
+            f"<b>Vehicles:</b> {vehicle_count:,} &nbsp;&nbsp; "
+            f"<b>Defect quantity:</b> {total_qty:,.0f}",
+            body_style,
+        ),
+        Spacer(1, 12),
+    ]
+    available_width = page_size[0] - 2 * margin
+    col_widths = [62, 155, 72, available_width - 289]
+    audit_table = Table(table_rows, colWidths=col_widths, repeatRows=1, splitByRow=1)
+    audit_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f1b2d")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d9e1eb")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f7fa")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(audit_table)
+    doc.build(story)
+    return output.getvalue()
+
+
 def render_audit_records(filtered, sheet_name):
     section_header("Audit records", f"Showing {len(filtered):,} records from {sheet_name}")
     view = filtered.copy()
     for c in view.columns:
         if pd.api.types.is_datetime64_any_dtype(view[c]):
             view[c] = view[c].dt.strftime("%d %b %Y")
-    st.dataframe(view, use_container_width=True, hide_index=True, height=520)
+    defect_columns = []
+    for col in view.columns:
+        match = re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE)
+        if match:
+            defect_columns.append((int(match.group(1)), col))
+    defect_columns.sort()
+    if defect_columns:
+        defect_palette = ["#fff0e8", "#eaf4ff", "#eef8ed", "#f4edff", "#fff8dc", "#e8f7f5"]
+        styled_view = view.style
+        for number, col in defect_columns:
+            tint = defect_palette[(number - 1) % len(defect_palette)]
+            styled_view = styled_view.map(
+                lambda value, background=tint: (
+                    f"background-color: {background}; color: #243449;"
+                    if pd.notna(value) and str(value).strip().lower() not in ("", "nan", "none")
+                    else ""
+                ),
+                subset=[col],
+            )
+        st.dataframe(styled_view, alt="Audit records with numbered defect entries highlighted", hide_index=True, height=520)
+    else:
+        st.dataframe(view, alt="Audit records", hide_index=True, height=520)
+
+    date_col = _find(filtered, ["Date", "Audit Date"])
+    if date_col and not filtered.empty:
+        report_source = filtered.copy().reset_index(drop=True)
+        parsed_dates = pd.to_datetime(report_source[date_col], errors="coerce")
+        has_date = parsed_dates.notna()
+        if has_date.any():
+            st.markdown("#### Download a PDF report")
+            st.caption("The report uses the filters selected above and includes the matching defect entries.")
+            frequency = st.selectbox(
+                "Report frequency", ["Daily", "Weekly", "Monthly"], key="audit_report_frequency"
+            )
+            period_kind = {"Daily": "D", "Weekly": "W-SUN", "Monthly": "M"}[frequency]
+            period_values = parsed_dates.dt.to_period(period_kind)
+            available_periods = sorted(period_values[has_date].dropna().unique(), reverse=True)
+
+            def period_label(period):
+                if frequency == "Daily":
+                    return period.start_time.strftime("%d %b %Y")
+                if frequency == "Weekly":
+                    return f"{period.start_time:%d %b %Y} - {period.end_time:%d %b %Y}"
+                return period.start_time.strftime("%B %Y")
+
+            labels = [period_label(period) for period in available_periods]
+            selected_label = st.selectbox(
+                "Report period", labels, key=f"audit_report_period_{frequency.lower()}"
+            )
+            selected_period = available_periods[labels.index(selected_label)]
+            report_rows = report_source.loc[has_date & period_values.eq(selected_period)].copy()
+            pdf = _build_audit_report_pdf(report_rows, date_col, selected_label)
+            start_date = selected_period.start_time.strftime("%Y%m%d")
+            end_date = selected_period.end_time.strftime("%Y%m%d")
+            period_slug = frequency.lower()
+            st.download_button(
+                f"Download {period_slug} PDF report",
+                data=pdf,
+                file_name=f"QFL4_audit_{period_slug}_{start_date}_{end_date}.pdf",
+                mime="application/pdf",
+                width="content",
+            )
+        else:
+            st.info("PDF reports need audit records with a valid date.")
     st.download_button(
         "Download filtered records (CSV)",
         data=filtered.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"QFL4_audit_records_{_now_pk():%Y%m%d}.csv",
         mime="text/csv",
+        width="content",
     )
 
 
