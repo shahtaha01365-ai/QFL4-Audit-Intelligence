@@ -891,6 +891,25 @@ if page == "➕ Add Audit Data":
     if duplicate_chassis_live:
         st.error("This chassis number is already entered.")
 
+    defect_card_palette = [
+        ("#f3f8ff", "#d8e7f8", "#5b8ec9"),
+        ("#f8f5ff", "#e8def8", "#8d70c2"),
+        ("#f2faf5", "#d8ecdf", "#5a9c73"),
+        ("#fff8f1", "#f1e2d2", "#d4934b"),
+        ("#fff5f6", "#f1dce0", "#c86c7c"),
+        ("#f1fafb", "#d6ebee", "#5596a0"),
+    ]
+    defect_card_rules = []
+    for defect_index in range(int(defect_rows_count)):
+        background, border, accent = defect_card_palette[defect_index % len(defect_card_palette)]
+        card_key = f"st-key-defect_entry_card_{defect_index}"
+        defect_card_rules.append(
+            f'.{card_key}, .{card_key} [data-testid="stVerticalBlockBorderWrapper"] {{'
+            f'background-color:{background} !important; border-color:{border} !important;'
+            f'border-radius:12px !important; box-shadow:inset 4px 0 0 {accent} !important; }}'
+        )
+    st.html("<style>" + "".join(defect_card_rules) + "</style>")
+
     with st.form("add_data_form"):
 
         st.markdown("### Fluid Check")
@@ -923,7 +942,7 @@ if page == "➕ Add Audit Data":
 
         nomenclature_entries = []
         for idx in range(int(defect_rows_count)):
-            with st.container(border=True):
+            with st.container(border=True, key=f"defect_entry_card_{idx}"):
                 st.markdown(f"**Defect Entry {idx + 1}**")
                 a1, a2 = st.columns(2)
                 with a1:
