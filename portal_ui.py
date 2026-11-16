@@ -118,19 +118,9 @@ section[data-testid="stSidebar"] > div:first-child{padding:.9rem .85rem 1rem;}
 .side-kicker{font-size:9px; font-weight:800; letter-spacing:1.6px; color:#ff6b81; text-transform:uppercase;}
 .side-title{font-size:17px; font-weight:800; color:#fff; letter-spacing:-.3px; line-height:1.2;}
 .side-title span{color:#ff6b81;}
-.nav-section{color:#7f91a7; font-size:10px; font-weight:800; letter-spacing:1.6px; padding:16px 8px 8px;}
-[data-testid="stSidebar"] label[data-baseweb="radio"] > div:first-child{display:none !important;}
-[data-testid="stSidebar"] div[role="radiogroup"]{gap:3px;}
-[data-testid="stSidebar"] div[role="radiogroup"] label{
-  width:100%; min-height:42px; padding:9px 12px; border-radius:11px; border:1px solid transparent; cursor:pointer;
-  transition:background .15s, border-color .15s;
-}
-[data-testid="stSidebar"] div[role="radiogroup"] label:hover{background:rgba(255,255,255,.07);}
-[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked){
-  background:linear-gradient(90deg,rgba(200,16,46,.34),rgba(200,16,46,.10)); border-color:rgba(255,107,129,.28);
-  box-shadow:inset 3px 0 0 #ff4d6a;
-}
-[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p{color:#fff !important; font-weight:700;}
+.nav-section{display:flex; align-items:center; gap:9px; color:#7f91a7; font-size:10px; font-weight:700; letter-spacing:.3px; padding:16px 8px 7px;}
+.nav-section::after{content:""; flex:1; height:1px; background:rgba(255,255,255,.09);}
+[data-testid="stSidebar"] div.stButton > button{width:100%;}
 .side-user{display:flex; align-items:center; gap:11px; padding:12px; margin-top:14px; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09);}
 .side-avatar{width:38px; height:38px; flex:0 0 38px; border-radius:50%; display:grid; place-items:center; font-weight:800; color:#fff; background:linear-gradient(145deg,#2f7bbf,#1f4e79);}
 .side-info{min-width:0; flex:1;}
@@ -537,6 +527,21 @@ function showLoader(timeoutMs){
   }, timeoutMs || 60000);
 }
 function bindNav(){
+  doc.querySelectorAll('[data-testid="stSidebar"] .stButton button').forEach(function(button){
+    if(button.dataset.qflNavLoading || button.closest('.st-key-logout_btn')) return;
+    button.dataset.qflNavLoading = "1";
+    if(button.getAttribute('kind') !== 'primary'){
+      button.addEventListener('click', function(){ showLoader(); }, true);
+    }
+    if(window.parent.innerWidth <= 768){
+      button.addEventListener('click', function(){
+        setTimeout(function(){
+          var collapse = doc.querySelector('[data-testid="stSidebarCollapseButton"] button') || doc.querySelector('[data-testid="stSidebarHeader"] button');
+          if(collapse) collapse.click();
+        }, 180);
+      });
+    }
+  });
   doc.querySelectorAll('[data-testid="stSidebar"] label[data-testid="stRadioOption"]').forEach(function(l){
     if(l.dataset.qfl) return; l.dataset.qfl = "1";
     l.addEventListener('click', function(){
@@ -553,6 +558,7 @@ function bindNav(){
     });
   });
   doc.querySelectorAll('button[kind="primary"],button[kind="primaryFormSubmit"]').forEach(function(button){
+    if(button.closest('[data-testid="stSidebar"]')) return;
     if(button.dataset.qflLoading) return;
     button.dataset.qflLoading = "1";
     button.addEventListener('click', function(){ showLoader(12000); }, true);
@@ -585,26 +591,65 @@ _PAGE_LABELS = {
     "👥 Manage Users": "Manage users",
 }
 
+_NAV_GROUPS = (
+    ("Home", ("🏠 Overview", "Vision & Mission")),
+    ("Analytics", ("🎙️ AI Assistant", "⚠️ Total Defects", "📈 Pareto Analysis", "🧩 Class & Zone")),
+    ("Audit records", ("🚗 Vehicle Audit", "📋 Audit Data", "📄 Download Chassis Sheet")),
+    ("Administration", ("➕ Add Audit Data", "🗑️ Delete Audit Entry", "👥 Manage Users")),
+)
+
+_NAV_ICONS = {
+    "🏠 Overview": ":material/dashboard:",
+    "Vision & Mission": ":material/flag:",
+    "🎙️ AI Assistant": ":material/mic:",
+    "⚠️ Total Defects": ":material/warning:",
+    "📈 Pareto Analysis": ":material/bar_chart:",
+    "🧩 Class & Zone": ":material/grid_view:",
+    "🚗 Vehicle Audit": ":material/local_shipping:",
+    "📋 Audit Data": ":material/table_chart:",
+    "📄 Download Chassis Sheet": ":material/download:",
+    "➕ Add Audit Data": ":material/add_circle:",
+    "🗑️ Delete Audit Entry": ":material/delete:",
+    "👥 Manage Users": ":material/group:",
+}
+
 
 def render_sidebar(nav_pages, user_email, role, ai_ready, records=0):
     name = (user_email or "user").split("@")[0].replace(".", " ").replace("_", " ").title()
     initial = html.escape(name[:1].upper() or "U")
+    page = st.session_state.get("sidebar_page", "🏠 Overview")
+    if page not in nav_pages:
+        page = "🏠 Overview" if "🏠 Overview" in nav_pages else nav_pages[0]
+        st.session_state["sidebar_page"] = page
+
     with st.sidebar:
         st.markdown(
             f'<div class="side-brand"><img class="side-fuso-logo" src="{FUSO_LOGO_DATA_URI}" alt="FUSO logo">'
             '<div class="side-mark" role="img" aria-label="QFL4 logo">&#10003;</div>'
             '<div class="side-brand-copy"><div class="side-kicker">Master Motors &middot; FUSO</div>'
-            '<div class="side-title">QFL4 <span>AI</span></div></div></div>'
-            '<div class="nav-section">NAVIGATION</div>',
+            '<div class="side-title">QFL4 <span>AI</span></div></div></div>',
             unsafe_allow_html=True,
         )
-        page = st.radio(
-            "Pages",
-            nav_pages,
-            index=nav_pages.index("🏠 Overview"),
-            format_func=lambda value: _PAGE_LABELS.get(value, value),
-            label_visibility="collapsed",
-        )
+        grouped_pages = {item for _, items in _NAV_GROUPS for item in items}
+        groups = (*_NAV_GROUPS, ("More", tuple(item for item in nav_pages if item not in grouped_pages)))
+        button_index = 0
+        for group_name, items in groups:
+            visible_items = [item for item in items if item in nav_pages]
+            if not visible_items:
+                continue
+            st.markdown(f'<div class="nav-section">{html.escape(group_name)}</div>', unsafe_allow_html=True)
+            for item in visible_items:
+                button_index += 1
+                if st.button(
+                    _PAGE_LABELS.get(item, item),
+                    key=f"sidebar_nav_{button_index}",
+                    icon=_NAV_ICONS.get(item),
+                    type="primary" if item == page else "secondary",
+                ):
+                    page = item
+                    st.session_state["sidebar_page"] = page
+                    st.rerun()
+
         ai_dot = "dot" if ai_ready else "dot warn"
         ai_txt = "Ready" if ai_ready else "Key required"
         st.markdown(
