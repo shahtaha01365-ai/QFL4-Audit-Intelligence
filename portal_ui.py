@@ -118,9 +118,14 @@ section[data-testid="stSidebar"] > div:first-child{padding:.9rem .85rem 1rem;}
 .side-kicker{font-size:9px; font-weight:800; letter-spacing:1.6px; color:#ff6b81; text-transform:uppercase;}
 .side-title{font-size:17px; font-weight:800; color:#fff; letter-spacing:-.3px; line-height:1.2;}
 .side-title span{color:#ff6b81;}
-.nav-section{display:flex; align-items:center; gap:9px; color:#7f91a7; font-size:10px; font-weight:700; letter-spacing:.3px; padding:16px 8px 7px;}
+.nav-section{display:flex; align-items:center; justify-content:center; gap:9px; color:#7f91a7; font-size:10px; font-weight:700; letter-spacing:.3px; padding:16px 8px 7px; text-align:center;}
+.nav-section::before{content:""; flex:1; height:1px; background:rgba(255,255,255,.09);}
 .nav-section::after{content:""; flex:1; height:1px; background:rgba(255,255,255,.09);}
 [data-testid="stSidebar"] div.stButton > button{width:100%;}
+[data-testid="stSidebar"] [class*="st-key-sidebar_nav_"]{display:flex; justify-content:center; width:100%;}
+[data-testid="stSidebar"] [class*="st-key-sidebar_nav_"] div.stButton > button{
+  width:min(100%,210px) !important; justify-content:center !important;
+}
 .side-user{display:flex; align-items:center; gap:11px; padding:12px; margin-top:14px; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09);}
 .side-avatar{width:38px; height:38px; flex:0 0 38px; border-radius:50%; display:grid; place-items:center; font-weight:800; color:#fff; background:linear-gradient(145deg,#2f7bbf,#1f4e79);}
 .side-info{min-width:0; flex:1;}
@@ -586,6 +591,7 @@ _PAGE_LABELS = {
     "📄 Download Chassis Sheet": "Download chassis sheet",
     "🧩 Class & Zone": "Class & zone",
     "📋 Audit Data": "Audit data",
+    "Download Reports": "Download reports",
     "➕ Add Audit Data": "Add audit data",
     "🗑️ Delete Audit Entry": "Delete audit entry",
     "👥 Manage Users": "Manage users",
@@ -595,6 +601,7 @@ _NAV_GROUPS = (
     ("Home", ("🏠 Overview", "Vision & Mission")),
     ("Analytics", ("🎙️ AI Assistant", "⚠️ Total Defects", "📈 Pareto Analysis", "🧩 Class & Zone")),
     ("Audit records", ("🚗 Vehicle Audit", "📋 Audit Data", "📄 Download Chassis Sheet")),
+    ("Reports", ("Download Reports",)),
     ("Administration", ("➕ Add Audit Data", "🗑️ Delete Audit Entry", "👥 Manage Users")),
 )
 
@@ -607,6 +614,7 @@ _NAV_ICONS = {
     "🧩 Class & Zone": ":material/grid_view:",
     "🚗 Vehicle Audit": ":material/local_shipping:",
     "📋 Audit Data": ":material/table_chart:",
+    "Download Reports": ":material/picture_as_pdf:",
     "📄 Download Chassis Sheet": ":material/download:",
     "➕ Add Audit Data": ":material/add_circle:",
     "🗑️ Delete Audit Entry": ":material/delete:",
@@ -853,43 +861,72 @@ def _pdf_cell(value):
 @st.cache_data(show_spinner=False)
 def _build_audit_report_pdf(report_data, date_col, period_label):
     from io import BytesIO
+    from collections import defaultdict
+    from pathlib import Path
 
+    import reportlab
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_LEFT
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.graphics.shapes import Circle, Drawing, Line, Rect, String
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     output = BytesIO()
     page_size = landscape(A4)
     margin = 24
+    available_width = page_size[0] - 2 * margin
     doc = SimpleDocTemplate(
         output, pagesize=page_size, rightMargin=margin, leftMargin=margin,
-        topMargin=36, bottomMargin=30, title=f"QFL4 audit report - {period_label}",
+        topMargin=30, bottomMargin=30, title=f"QFL4 audit report - {period_label}",
     )
+    font_dir = Path(reportlab.__file__).parent / "fonts"
+    font_paths = {
+        "QFL4Sans": font_dir / "Vera.ttf",
+        "QFL4Sans-Bold": font_dir / "VeraBd.ttf",
+        "QFL4Sans-Italic": font_dir / "VeraIt.ttf",
+        "QFL4Sans-BoldItalic": font_dir / "VeraBI.ttf",
+    }
+    if all(path.is_file() for path in font_paths.values()):
+        for font_name, font_path in font_paths.items():
+            if font_name not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont(font_name, str(font_path)))
+        pdfmetrics.registerFontFamily(
+            "QFL4Sans", normal="QFL4Sans", bold="QFL4Sans-Bold",
+            italic="QFL4Sans-Italic", boldItalic="QFL4Sans-BoldItalic",
+        )
+        font_regular, font_bold = "QFL4Sans", "QFL4Sans-Bold"
+    else:
+        font_regular, font_bold = "Helvetica", "Helvetica-Bold"
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "QFL4Title", parent=styles["Title"], fontName="Helvetica-Bold",
-        fontSize=17, leading=21, textColor=colors.HexColor("#0f1b2d"), alignment=TA_LEFT,
-    )
     body_style = ParagraphStyle(
-        "QFL4Body", parent=styles["BodyText"], fontName="Helvetica",
-        fontSize=8, leading=10, textColor=colors.HexColor("#243449"),
+        "QFL4Body", parent=styles["BodyText"], fontName=font_regular,
+        fontSize=8.5, leading=11, textColor=colors.HexColor("#475569"),
     )
     cell_style = ParagraphStyle(
-        "QFL4Cell", parent=body_style, fontSize=7, leading=9,
+        "QFL4Cell", parent=body_style, fontSize=7.5, leading=10,
     )
 
     chassis_col = _find(report_data, ["Chassis No", "Chassis Number", "Chassis"])
     vehicle_col = _find(report_data, ["Vehicle", "Vehicle Name"])
     model_col = _find(report_data, ["Model", "Model Name"])
     qty_col = _find(report_data, ["QTY", "Quantity", "Defect Qty", "Defect Quantity"])
-    defect_cols = []
-    for col in report_data.columns:
-        match = re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE)
-        if match:
-            defect_cols.append((int(match.group(1)), col))
-    defect_cols.sort()
+    defect_cols = sorted(
+        (int(match.group(1)), col)
+        for col in report_data.columns
+        if (match := re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE))
+    )
+    type_cols = sorted(
+        (int(match.group(1)), col)
+        for col in report_data.columns
+        if (match := re.fullmatch(r"Defect Type\s*(\d+)", str(col).strip(), flags=re.IGNORECASE))
+    )
+    category_cols = sorted(
+        (int(match.group(1)), col)
+        for col in report_data.columns
+        if (match := re.fullmatch(r"Defect Category\s*(\d+)", str(col).strip(), flags=re.IGNORECASE))
+    )
     base_defect_col = _find(report_data, ["Defect Type", "Defect", "Defect Name", "Defect Description", "Problem"])
 
     def value_for(row, col):
@@ -900,11 +937,264 @@ def _build_audit_report_pdf(report_data, date_col, period_label):
             return ""
         return str(value).strip()
 
+    dates = pd.to_datetime(report_data[date_col], errors="coerce").dropna()
+    date_range = dates.min().strftime("%d %b %Y")
+    if dates.min().date() != dates.max().date():
+        date_range += f" to {dates.max().strftime('%d %b %Y')}"
+    vehicle_count = report_data[chassis_col].nunique() if chassis_col else len(report_data)
+    total_qty = pd.to_numeric(report_data[qty_col], errors="coerce").fillna(0).sum() if qty_col else 0
+    dpu = total_qty / vehicle_count if vehicle_count else 0
+
+    def numeric(value, default=0.0):
+        result = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+        return default if pd.isna(result) else float(result)
+
+    def numbered_summary(columns, base_col=None):
+        totals = defaultdict(float)
+        for _, row in report_data.iterrows():
+            found = False
+            for number, value_col in columns:
+                label = value_for(row, value_col)
+                if not label:
+                    continue
+                found = True
+                per_item_qty_col = _find(report_data, [f"QTY {number}", f"Quantity {number}"])
+                if per_item_qty_col:
+                    amount = numeric(row.get(per_item_qty_col, 0))
+                elif len(columns) == 1 and qty_col:
+                    amount = numeric(row.get(qty_col, 0))
+                else:
+                    amount = 1
+                totals[label] += amount
+            if not found and base_col:
+                label = value_for(row, base_col)
+                if label:
+                    totals[label] += numeric(row.get(qty_col, 0), 1) if qty_col else 1
+        return sorted(totals.items(), key=lambda item: item[1], reverse=True)
+
+    type_col = _find(report_data, ["Defect Type"])
+    category_col = _find(report_data, ["Defect Category", "Category"])
+    type_summary = numbered_summary(type_cols, type_col)
+    category_summary = numbered_summary(category_cols, category_col)
+
+    def aggregate_by_column(label_col, weight_col=None):
+        if not label_col:
+            return []
+        values = defaultdict(float)
+        for _, row in report_data.iterrows():
+            label = value_for(row, label_col)
+            if label:
+                values[label] += numeric(row.get(weight_col, 0), 1) if weight_col else 1
+        return sorted(values.items(), key=lambda item: item[1], reverse=True)
+
+    def summary_columns(prefix, labels, numbered_prefix=None):
+        result = []
+        found = False
+        for label in labels:
+            col = _find(report_data, [f"{prefix} {label}"])
+            if col:
+                found = True
+                result.append((label, float(pd.to_numeric(report_data[col], errors="coerce").fillna(0).sum())))
+        if found:
+            return result
+        numbered_prefix = numbered_prefix or prefix
+        numbered = sorted(
+            (int(match.group(1)), col)
+            for col in report_data.columns
+            if (match := re.fullmatch(rf"{re.escape(numbered_prefix)}\s*(\d+)", str(col).strip(), flags=re.IGNORECASE))
+        )
+        return numbered_summary(numbered, _find(report_data, [numbered_prefix, prefix]))
+
+    class_summary = summary_columns("CLASS", list("ABCD"), "Defect Class")
+    zone_summary = summary_columns("ZONE", list("ABCD"), "Zone")
+    model_summary = aggregate_by_column(model_col, qty_col)
+    chassis_summary = aggregate_by_column(chassis_col, qty_col)
+
+    daily_summary = []
+    dated = report_data.copy()
+    dated["_report_date"] = pd.to_datetime(dated[date_col], errors="coerce").dt.normalize()
+    for report_date, rows in dated.dropna(subset=["_report_date"]).groupby("_report_date"):
+        total = pd.to_numeric(rows[qty_col], errors="coerce").fillna(0).sum() if qty_col else len(rows)
+        daily_summary.append((report_date.strftime("%d %b"), float(total)))
+    daily_summary = daily_summary[-12:]
+
+    chart_blue = colors.HexColor("#2f7bbf")
+    chart_red = colors.HexColor("#c8102e")
+    chart_green = colors.HexColor("#2e9e6b")
+    chart_orange = colors.HexColor("#e8890c")
+    ink = colors.HexColor("#0f1b2d")
+    muted = colors.HexColor("#64748b")
+    grid = colors.HexColor("#dfe6ee")
+    page_bg = colors.HexColor("#f3f5f9")
+    border = colors.HexColor("#e3e8ef")
+    white = colors.white
+
+    def chart(title, pairs, width=380, height=160, color=None, pareto=False, palette=None):
+        drawing = Drawing(width, height)
+        drawing.add(Rect(1, 1, width - 2, height - 2, fillColor=white, strokeColor=border, strokeWidth=0.8))
+        drawing.add(String(15, height - 21, title, fontName=font_bold, fontSize=9.5, fillColor=ink))
+        if not pairs:
+            drawing.add(String(16, height / 2, "No data for this period", fontName=font_regular, fontSize=8, fillColor=muted))
+            return drawing
+        pairs = pairs[:8]
+        plot_left, plot_bottom = 40, 37
+        plot_width, plot_height = width - 56, height - 78
+        max_value = max((float(value) for _, value in pairs), default=0) or 1
+        step = plot_width / len(pairs)
+        bar_width = max(7, step * 0.52)
+        for tick in range(4):
+            y = plot_bottom + plot_height * tick / 3
+            drawing.add(Line(plot_left, y, plot_left + plot_width, y, strokeColor=grid, strokeWidth=0.55))
+            tick_value = max_value * tick / 3
+            drawing.add(String(plot_left - 5, y - 2, f"{tick_value:.0f}", fontName=font_regular, fontSize=5.8, textAnchor="end", fillColor=muted))
+        if pareto:
+            target_y = plot_bottom + plot_height * 0.8
+            dash_x = plot_left
+            while dash_x < plot_left + plot_width:
+                dash_end = min(dash_x + 5, plot_left + plot_width)
+                drawing.add(Line(dash_x, target_y, dash_end, target_y, strokeColor=chart_orange, strokeWidth=0.6))
+                dash_x += 9
+            drawing.add(String(plot_left + plot_width - 16, target_y + 3, "80%", fontName=font_bold, fontSize=5.5, fillColor=chart_orange))
+        for index, (label, value) in enumerate(pairs):
+            x = plot_left + index * step + (step - bar_width) / 2
+            bar_height = max(1, float(value) / max_value * plot_height)
+            bar_color = palette[index % len(palette)] if palette else (color or chart_blue)
+            drawing.add(Rect(x, plot_bottom, bar_width, bar_height, fillColor=bar_color, strokeColor=None))
+            drawing.add(String(x + bar_width / 2, min(plot_bottom + bar_height + 3, height - 35), f"{float(value):.0f}", fontName=font_bold, fontSize=5.8, textAnchor="middle", fillColor=ink))
+            short_label = str(label)
+            if len(short_label) > 10:
+                short_label = short_label[:8] + "…"
+            drawing.add(String(x + bar_width / 2, plot_bottom - 10, short_label, fontName=font_regular, fontSize=5.8, textAnchor="middle", fillColor=muted))
+        if pareto:
+            cumulative = 0.0
+            previous = None
+            total = sum(float(value) for _, value in pairs) or 1
+            for index, (_, value) in enumerate(pairs):
+                cumulative += float(value)
+                x = plot_left + index * step + step / 2
+                y = plot_bottom + (cumulative / total) * plot_height
+                if previous:
+                    drawing.add(Line(previous[0], previous[1], x, y, strokeColor=chart_orange, strokeWidth=1.7))
+                drawing.add(Circle(x, y, 2, fillColor=chart_orange, strokeColor=white, strokeWidth=0.7))
+                previous = (x, y)
+            drawing.add(Rect(width - 105, height - 21, 7, 7, fillColor=color or chart_blue, strokeColor=None))
+            drawing.add(String(width - 94, height - 20, "QTY", fontName=font_regular, fontSize=5.8, fillColor=muted))
+            drawing.add(Line(width - 62, height - 17, width - 53, height - 17, strokeColor=chart_orange, strokeWidth=1.5))
+            drawing.add(String(width - 50, height - 20, "Cumulative", fontName=font_regular, fontSize=5.8, fillColor=muted))
+        return drawing
+
+    class_names = ["A", "B", "C", "D"]
+    class_map = dict(class_summary)
+    zone_map = dict(zone_summary)
+    dashboard_charts = Table(
+        [
+            [chart("Pareto - defect type", type_summary, color=chart_blue, pareto=True),
+             chart("Pareto - defect category", category_summary, color=chart_red, pareto=True)],
+            [chart("Defects by class", [(f"Class {name}", class_map.get(name, 0)) for name in class_names], palette=[chart_red, chart_orange, chart_blue, chart_green]),
+             chart("Defects by zone", [(f"Zone {name}", zone_map.get(name, 0)) for name in class_names], palette=[chart_blue, colors.HexColor("#548fc4"), colors.HexColor("#79a9d0"), colors.HexColor("#a7c6df")])],
+        ],
+        colWidths=[available_width / 2, available_width / 2],
+    )
+    dashboard_charts.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+
+    def draw_page(canvas, document):
+        canvas.saveState()
+        canvas.setFillColor(page_bg)
+        canvas.rect(0, 0, page_size[0], page_size[1], fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#d9e1eb"))
+        canvas.line(margin, 22, page_size[0] - margin, 22)
+        canvas.setFont(font_regular, 7)
+        canvas.setFillColor(muted)
+        canvas.drawString(margin, 11, "QFL4 AI Audit Intelligence - Internal report")
+        canvas.drawRightString(page_size[0] - margin, 11, f"Page {document.page}")
+        canvas.restoreState()
+
+    def report_banner(title, subtitle):
+        banner = Drawing(available_width, 52)
+        banner.add(Rect(0, 0, available_width, 52, fillColor=ink, strokeColor=ink))
+        banner.add(Rect(0, 5, 5, 42, fillColor=chart_red, strokeColor=None))
+        banner.add(String(18, 31, title.upper(), fontName=font_bold, fontSize=9, fillColor=colors.HexColor("#fda4af")))
+        banner.add(String(18, 13, subtitle, fontName=font_regular, fontSize=8, fillColor=white))
+        banner.add(String(available_width - 18, 27, "QFL4", fontName=font_bold, fontSize=17, textAnchor="end", fillColor=white))
+        return banner
+
+    def report_section(title, subtitle=""):
+        drawing = Drawing(available_width, 23)
+        drawing.add(Rect(0, 4, 4, 15, fillColor=chart_red, strokeColor=None))
+        drawing.add(String(12, 10, title, fontName=font_bold, fontSize=10, fillColor=ink))
+        if subtitle:
+            drawing.add(String(140, 10, subtitle, fontName=font_regular, fontSize=7, fillColor=muted))
+        return drawing
+
+    def kpi_card(label, value, detail, accent, tint, badge, width):
+        height = 76
+        drawing = Drawing(width, height)
+        drawing.add(Rect(1, 1, width - 2, height - 2, fillColor=white, strokeColor=border, strokeWidth=0.8))
+        drawing.add(Rect(1, 7, 4, height - 14, fillColor=accent, strokeColor=None))
+        drawing.add(Rect(width - 37, height - 34, 23, 23, fillColor=tint, strokeColor=None))
+        drawing.add(String(width - 25.5, height - 26, badge, fontName=font_bold, fontSize=7.5, textAnchor="middle", fillColor=accent))
+        drawing.add(String(13, height - 19, label, fontName=font_bold, fontSize=6.2, fillColor=muted))
+        drawing.add(String(13, height - 46, value, fontName=font_bold, fontSize=18, fillColor=accent))
+        drawing.add(String(13, 10, detail, fontName=font_regular, fontSize=6.1, fillColor=muted))
+        return drawing
+
+    card_gap = 8
+    card_width = (available_width - card_gap * 3) / 4
+    kpi_cards = [
+        kpi_card("VEHICLES AUDITED", f"{vehicle_count:,}", "Unique chassis in this report", chart_blue, colors.HexColor("#eaf2fb"), "V", card_width),
+        kpi_card("TOTAL DEFECTS", f"{total_qty:,.0f}", "All classes combined", chart_red, colors.HexColor("#fdecef"), "!", card_width),
+        kpi_card("A + B DEFECTS", f"{sum(class_map.get(k, 0) for k in ('A', 'B')):.0f}", "Critical and major findings", chart_orange, colors.HexColor("#fff3e3"), "A+B", card_width),
+        kpi_card("DPU", f"{dpu:.2f}", "Defects per vehicle", ink, colors.HexColor("#edf0f5"), "D", card_width),
+    ]
+    kpi_table = Table([kpi_cards], colWidths=[available_width / 4] * 4)
+    kpi_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]))
+
+    story = [
+        report_banner("QFL4 audit intelligence", f"{period_label}  |  Audit dates: {date_range}"),
+        Spacer(1, 8),
+        kpi_table,
+        Spacer(1, 7),
+        report_section("Quality overview", "Defects by type, category, class and zone"),
+        dashboard_charts,
+        PageBreak(),
+        report_banner("Operational detail", f"{period_label}  |  Models, daily trend and chassis"),
+        Spacer(1, 8),
+        Table(
+            [[chart("Defect quantity by model", model_summary, color=chart_blue),
+              chart("Daily defect trend", daily_summary, color=chart_orange)]],
+            colWidths=[available_width / 2, available_width / 2],
+            style=TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+            ]),
+        ),
+        Spacer(1, 6),
+        chart("Top chassis by defect quantity", chassis_summary, width=available_width, height=174, color=chart_red),
+        Spacer(1, 5),
+        report_section("Audit record detail", "All matching defect entries"),
+    ]
+
     table_rows = [[
-        Paragraph("<b>Date</b>", cell_style),
+        Paragraph("<b>Audit date</b>", cell_style),
         Paragraph("<b>Vehicle / chassis</b>", cell_style),
         Paragraph("<b>Model</b>", cell_style),
-        Paragraph("<b>Defect details</b>", cell_style),
+        Paragraph("<b>Defect entries</b>", cell_style),
     ]]
     for _, row in report_data.iterrows():
         raw_date = row.get(date_col, "")
@@ -932,7 +1222,10 @@ def _build_audit_report_pdf(report_data, date_col, period_label):
                 meta_value = value_for(row, meta_col)
                 if meta_value:
                     meta.append(f"{label}: {_pdf_cell(meta_value)}")
-            details.append(f"<b>Defect {number}:</b> {_pdf_cell(defect)}" + (f"<br/><font color='#64748b'>{' | '.join(meta)}</font>" if meta else ""))
+            details.append(
+                f"<b>Defect {number}:</b> {_pdf_cell(defect)}"
+                + (f"<br/><font color='#64748b'>{' | '.join(meta)}</font>" if meta else "")
+            )
         if not defect_cols and base_defect_col:
             defect = value_for(row, base_defect_col)
             if defect:
@@ -946,42 +1239,24 @@ def _build_audit_report_pdf(report_data, date_col, period_label):
             Paragraph("<br/><br/>".join(details), cell_style),
         ])
 
-    dates = pd.to_datetime(report_data[date_col], errors="coerce").dropna()
-    date_range = dates.min().strftime("%d %b %Y")
-    if dates.min().date() != dates.max().date():
-        date_range += f" to {dates.max().strftime('%d %b %Y')}"
-    vehicle_count = report_data[chassis_col].nunique() if chassis_col else len(report_data)
-    total_qty = pd.to_numeric(report_data[qty_col], errors="coerce").fillna(0).sum() if qty_col else 0
-
-    story = [
-        Paragraph("QFL4 audit report", title_style),
-        Spacer(1, 4),
-        Paragraph(
-            f"<b>Period:</b> {_pdf_cell(period_label)} &nbsp;&nbsp; "
-            f"<b>Audit dates:</b> {_pdf_cell(date_range)} &nbsp;&nbsp; "
-            f"<b>Records:</b> {len(report_data):,} &nbsp;&nbsp; "
-            f"<b>Vehicles:</b> {vehicle_count:,} &nbsp;&nbsp; "
-            f"<b>Defect quantity:</b> {total_qty:,.0f}",
-            body_style,
-        ),
-        Spacer(1, 12),
-    ]
-    available_width = page_size[0] - 2 * margin
     col_widths = [62, 155, 72, available_width - 289]
     audit_table = Table(table_rows, colWidths=col_widths, repeatRows=1, splitByRow=1)
     audit_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f1b2d")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d9e1eb")),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (2, 0), (2, -1), "CENTER"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f7fa")]),
-        ("LEFTPADDING", (0, 0), (-1, -1), 5),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.45, colors.HexColor("#d9e1eb")),
+        ("LINEBEFORE", (0, 0), (0, -1), 2.4, chart_red),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))
     story.append(audit_table)
-    doc.build(story)
+    doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page)
     return output.getvalue()
 
 
@@ -1014,14 +1289,24 @@ def render_audit_records(filtered, sheet_name):
     else:
         st.dataframe(view, alt="Audit records", hide_index=True, height=520)
 
+    st.download_button(
+        "Download filtered records (CSV)",
+        data=filtered.to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"QFL4_audit_records_{_now_pk():%Y%m%d}.csv",
+        mime="text/csv",
+        width="content",
+    )
+
+
+def render_audit_report_download(filtered):
+    page_title("Download reports", "Create a daily, weekly or monthly audit report as a PDF.", "&#128196;")
     date_col = _find(filtered, ["Date", "Audit Date"])
     if date_col and not filtered.empty:
         report_source = filtered.copy().reset_index(drop=True)
         parsed_dates = pd.to_datetime(report_source[date_col], errors="coerce")
         has_date = parsed_dates.notna()
         if has_date.any():
-            st.markdown("#### Download a PDF report")
-            st.caption("The report uses the filters selected above and includes the matching defect entries.")
+            st.caption("Choose a frequency and period. The report includes matching audit records and defect details.")
             frequency = st.selectbox(
                 "Report frequency", ["Daily", "Weekly", "Monthly"], key="audit_report_frequency"
             )
@@ -1055,13 +1340,8 @@ def render_audit_records(filtered, sheet_name):
             )
         else:
             st.info("PDF reports need audit records with a valid date.")
-    st.download_button(
-        "Download filtered records (CSV)",
-        data=filtered.to_csv(index=False).encode("utf-8-sig"),
-        file_name=f"QFL4_audit_records_{_now_pk():%Y%m%d}.csv",
-        mime="text/csv",
-        width="content",
-    )
+    else:
+        st.info("No audit records are available for a PDF report.")
 
 
 # ------------------------------------------------------------

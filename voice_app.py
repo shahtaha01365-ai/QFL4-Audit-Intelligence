@@ -24,6 +24,18 @@ from streamlit_mic_recorder import mic_recorder
 from auth_session import AUTH_COOKIE_NAME, restore_auth_session
 from login_ui import login
 from loading_ui import PORTAL_LOADING_HTML, qfl4_spinner
+
+# Streamlit may keep a helper module cached after a failed hot reload. Reload
+# it when its source file changes so updated sidebar and page-title UI is used.
+import importlib
+import portal_ui as _portal_ui
+_portal_ui_source_mtime = Path(_portal_ui.__file__).stat().st_mtime_ns
+
+if getattr(_portal_ui, "_qfl4_loaded_source_mtime", None) != _portal_ui_source_mtime:
+    importlib.invalidate_caches()
+    _portal_ui = importlib.reload(_portal_ui)
+    _portal_ui._qfl4_loaded_source_mtime = _portal_ui_source_mtime
+
 from portal_ui import (
     inject_portal_css,
     page_title,
@@ -35,6 +47,7 @@ from portal_ui import (
     render_class_zone,
     render_pareto,
     render_audit_records,
+    render_audit_report_download,
     render_user_approvals,
     render_footer,
 )
@@ -90,6 +103,43 @@ if st.session_state.get("audit_save_notice"):
         </style>
         <script>
           window.setTimeout(() => window.parent.location.reload(), 2000);
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
+if st.session_state.get("audit_delete_notice"):
+    delete_notice = html.escape(str(st.session_state.pop("audit_delete_notice")))
+    st.html(
+        f"""
+        <div style="position:fixed;inset:0;z-index:2147483647;display:grid;
+                    place-items:center;pointer-events:none;font-family:Inter,'Segoe UI',sans-serif">
+          <div role="status" aria-live="polite"
+               style="box-sizing:border-box;display:flex;align-items:center;gap:14px;
+                      width:min(420px,calc(100vw - 32px));padding:16px 20px;
+                      color:#172234;background:#fff;border:1px solid #dfe7ef;
+                      border-radius:14px;box-shadow:0 18px 55px rgba(15,27,45,.22);
+                      animation:audit-deleted-in .24s ease-out both">
+            <span aria-hidden="true"
+                  style="display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;
+                         color:#fff;background:#16a765;border-radius:50%;
+                         font-size:22px;font-weight:800">&#10003;</span>
+            <span style="min-width:0">
+              <span style="display:block;font-size:15px;font-weight:800">Audit record deleted</span>
+              <span style="display:block;margin-top:3px;color:#64748b;font-size:12px;line-height:1.45">
+                {delete_notice}
+              </span>
+            </span>
+          </div>
+        </div>
+        <style>
+          @keyframes audit-deleted-in {{
+            from {{ opacity:0; transform:translateY(8px) scale(.98); }}
+            to {{ opacity:1; transform:translateY(0) scale(1); }}
+          }}
+        </style>
+        <script>
+          window.setTimeout(() => window.parent.location.reload(), 2500);
         </script>
         """,
         unsafe_allow_javascript=True,
@@ -595,6 +645,7 @@ nav_pages = [
     "📄 Download Chassis Sheet",
     "🧩 Class & Zone",
     "📋 Audit Data",
+    "Download Reports",
 ]
 if st.session_state.get("role") == "admin":
     nav_pages += ["➕ Add Audit Data", "🗑️ Delete Audit Entry", "👥 Manage Users"]
@@ -746,7 +797,9 @@ if page == "🗑️ Delete Audit Entry":
                     ):
                         df_delete = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
                         save_google_sheet(df_delete)
-                        st.success(f"All audit entries for chassis {selected_chassis_delete} were deleted successfully.")
+                        st.session_state["audit_delete_notice"] = (
+                            f"All audit entries for chassis {selected_chassis_delete} were deleted."
+                        )
                         st.rerun()
     except Exception as exc:
         st.error(f"An error occurred while deleting the audit entry: {exc}")
@@ -1407,5 +1460,7 @@ elif page == "🎙️ AI Assistant":
     render_ai_assistant(filtered)
 elif page in ("🚗 Vehicle Audit", "📋 Audit Data"):
     render_audit_records(filtered, SHEET_NAME)
+elif page == "Download Reports":
+    render_audit_report_download(filtered)
 
 render_footer()
