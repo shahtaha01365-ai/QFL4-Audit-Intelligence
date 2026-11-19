@@ -35,6 +35,12 @@ def render_edit_defect_entry(load_data, save_data, upload_image, delete_images, 
     row_index = row_indexes[0]
     row = data.loc[row_index]
 
+    # Excel loaders may return Arrow-backed string columns. Convert before
+    # editing so pandas can safely accept values of a different type (for
+    # example, an integer in a quantity column).
+    data = data.astype(object)
+    row = data.loc[row_index]
+
     slots = []
     for col in data.columns:
         match = re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE)
