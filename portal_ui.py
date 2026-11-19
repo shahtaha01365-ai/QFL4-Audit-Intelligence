@@ -102,7 +102,21 @@ div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMultiSelect"]){
 /* ---------- Sidebar ---------- */
 section[data-testid="stSidebar"]{background:linear-gradient(180deg,#0f1b2d 0%,#0b1624 100%) !important; border-right:1px solid rgba(255,255,255,.06);}
 section[data-testid="stSidebar"][aria-expanded="true"]{min-width:276px !important; max-width:min(276px,86vw) !important;}
-section[data-testid="stSidebar"] > div:first-child{padding:.9rem .85rem 1rem;}
+section[data-testid="stSidebar"] > div:first-child{
+  box-sizing:border-box; height:100dvh; max-height:100dvh; overflow:hidden;
+  padding:0 .85rem .9rem;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"]{
+  box-sizing:border-box; position:relative; height:24px; min-height:24px; padding:0; overflow:visible;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button{
+  position:absolute; top:0; right:0; z-index:20;
+}
+section[data-testid="stSidebar"] .st-key-sidebar_scroll_area{
+  box-sizing:border-box; height:calc(100dvh - 486px); max-height:calc(100dvh - 486px);
+  min-height:100px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin;
+}
+section[data-testid="stSidebar"] .st-key-sidebar_footer{margin-top:0; padding-top:4px;}
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, [data-testid="stSidebar"] label p{color:#c7d2e0 !important;}
 [data-testid="stSidebarHeader"] button, [data-testid="stSidebarCollapseButton"] button{color:#c7d2e0 !important;}
 [data-testid="stSidebarCollapsedControl"] button, [data-testid="collapsedControl"] button{
@@ -631,54 +645,58 @@ def render_sidebar(nav_pages, user_email, role, ai_ready, records=0):
         st.session_state["sidebar_page"] = page
 
     with st.sidebar:
-        st.markdown(
-            f'<div class="side-brand"><img class="side-fuso-logo" src="{FUSO_LOGO_DATA_URI}" alt="FUSO logo">'
-            '<div class="side-mark" role="img" aria-label="QFL4 logo">&#10003;</div>'
-            '<div class="side-brand-copy"><div class="side-kicker">Master Motors &middot; FUSO</div>'
-            '<div class="side-title">QFL4 <span>AI</span></div></div></div>',
-            unsafe_allow_html=True,
-        )
-        grouped_pages = {item for _, items in _NAV_GROUPS for item in items}
-        groups = (*_NAV_GROUPS, ("More", tuple(item for item in nav_pages if item not in grouped_pages)))
-        button_index = 0
-        for group_name, items in groups:
-            visible_items = [item for item in items if item in nav_pages]
-            if not visible_items:
-                continue
-            st.markdown(f'<div class="nav-section">{html.escape(group_name)}</div>', unsafe_allow_html=True)
-            for item in visible_items:
-                button_index += 1
-                if st.button(
-                    _PAGE_LABELS.get(item, item),
-                    key=f"sidebar_nav_{button_index}",
-                    icon=_NAV_ICONS.get(item),
-                    type="primary" if item == page else "secondary",
-                ):
-                    page = item
-                    st.session_state["sidebar_page"] = page
-                    st.rerun()
+        with st.container(key="sidebar_brand"):
+            st.markdown(
+                f'<div class="side-brand"><img class="side-fuso-logo" src="{FUSO_LOGO_DATA_URI}" alt="FUSO logo">'
+                '<div class="side-mark" role="img" aria-label="QFL4 logo">&#10003;</div>'
+                '<div class="side-brand-copy"><div class="side-kicker">Master Motors &middot; FUSO</div>'
+                '<div class="side-title">QFL4 <span>AI</span></div></div></div>',
+                unsafe_allow_html=True,
+            )
 
-        ai_dot = "dot" if ai_ready else "dot warn"
-        ai_txt = "Ready" if ai_ready else "Key required"
-        st.markdown(
-            f'<div class="nav-section">ACCOUNT</div>'
-            f'<div class="side-user"><div class="side-avatar">{initial}</div><div class="side-info">'
-            f'<div class="side-name">{html.escape(name)}</div><div class="side-mail">{html.escape(user_email or "")}</div></div>'
-            f'<span class="role-pill">{html.escape(str(role).upper())}</span></div>'
-            f'<div class="side-status"><div><span><i class="dot"></i>Google Sheets</span><b>{records:,} rows</b></div>'
-            f'<div><span><i class="{ai_dot}"></i>Gemini AI</span><b>{ai_txt}</b></div></div>',
-            unsafe_allow_html=True,
-        )
-        st.write("")
-        if st.button("Sign out", use_container_width=True, key="logout_btn"):
-            clear_auth_cookie()
-            st.session_state.logged_in = False
-            st.session_state.role = "user"
-            st.session_state.user_email = ""
-            st.session_state.user_name = ""
-            st.session_state.show_signup = False
-            st.session_state.auth_cookie_revoked = True
-            st.stop()
+        with st.container(key="sidebar_scroll_area"):
+            grouped_pages = {item for _, items in _NAV_GROUPS for item in items}
+            groups = (*_NAV_GROUPS, ("More", tuple(item for item in nav_pages if item not in grouped_pages)))
+            button_index = 0
+            for group_name, items in groups:
+                visible_items = [item for item in items if item in nav_pages]
+                if not visible_items:
+                    continue
+                st.markdown(f'<div class="nav-section">{html.escape(group_name)}</div>', unsafe_allow_html=True)
+                for item in visible_items:
+                    button_index += 1
+                    if st.button(
+                        _PAGE_LABELS.get(item, item),
+                        key=f"sidebar_nav_{button_index}",
+                        icon=_NAV_ICONS.get(item),
+                        type="primary" if item == page else "secondary",
+                    ):
+                        page = item
+                        st.session_state["sidebar_page"] = page
+                        st.rerun()
+
+        with st.container(key="sidebar_footer"):
+            ai_dot = "dot" if ai_ready else "dot warn"
+            ai_txt = "Ready" if ai_ready else "Key required"
+            st.markdown(
+                f'<div class="nav-section">ACCOUNT</div>'
+                f'<div class="side-user"><div class="side-avatar">{initial}</div><div class="side-info">'
+                f'<div class="side-name">{html.escape(name)}</div><div class="side-mail">{html.escape(user_email or "")}</div></div>'
+                f'<span class="role-pill">{html.escape(str(role).upper())}</span></div>'
+                f'<div class="side-status"><div><span><i class="dot"></i>Google Sheets</span><b>{records:,} rows</b></div>'
+                f'<div><span><i class="{ai_dot}"></i>Gemini AI</span><b>{ai_txt}</b></div></div>',
+                unsafe_allow_html=True,
+            )
+            st.write("")
+            if st.button("Sign out", use_container_width=True, key="logout_btn"):
+                clear_auth_cookie()
+                st.session_state.logged_in = False
+                st.session_state.role = "user"
+                st.session_state.user_email = ""
+                st.session_state.user_name = ""
+                st.session_state.show_signup = False
+                st.session_state.auth_cookie_revoked = True
+                st.stop()
         components.html(_MOBILE_NAV_JS, height=0)
     return page
 
