@@ -288,14 +288,35 @@ div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) [d
 }
 @media (max-width:640px){
   .block-container{padding-left:.9rem !important; padding-right:.9rem !important;}
+  section[data-testid="stSidebar"][aria-expanded="true"]{min-width:min(276px,86vw) !important; max-width:min(276px,86vw) !important;}
+  div[data-testid="stHorizontalBlock"]:not(:has(input[aria-label="POWERED BY FQCM"])){
+    flex-wrap:wrap !important; gap:.25rem .75rem;
+  }
+  div[data-testid="stHorizontalBlock"]:not(:has(input[aria-label="POWERED BY FQCM"])) > div[data-testid="stColumn"]{
+    flex:1 1 100% !important; width:100% !important; min-width:100% !important;
+  }
+  div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]){flex-wrap:nowrap !important; gap:.35rem;}
+  div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) > div[data-testid="stColumn"]:first-child{
+    flex:1 1 auto !important; width:auto !important; min-width:0 !important;
+  }
+  div[data-testid="stHorizontalBlock"]:has(input[aria-label="POWERED BY FQCM"]) > div[data-testid="stColumn"]:last-child{
+    flex:0 0 44px !important; width:44px !important; min-width:44px !important;
+  }
   .ph-ico{width:42px; height:42px; flex-basis:42px; font-size:19px;}
+  .ph{align-items:flex-start; gap:10px; margin-bottom:14px;}
+  .ph-title{font-size:21px; overflow-wrap:anywhere;}
+  .ph-desc{font-size:12px; line-height:1.45;}
   .kpi-grid{grid-template-columns:repeat(2,1fr); gap:10px;}
   .kpi-card{padding:14px 14px 14px 16px;}
   .kpi-ico{display:none;}
   .insight{flex-direction:column; gap:10px;}
+  .answer-card{padding:15px 16px;}
+  .answer-text{font-size:14px; line-height:1.55; overflow-wrap:anywhere;}
+  div[data-testid="stForm"]{padding:14px 12px !important;}
+  div[data-testid="stDataFrame"]{max-width:100%; overflow-x:auto;}
   .pf-grid{grid-template-columns:1fr;}
   .mast-chips .chip{font-size:11px; padding:8px 11px;}
-  div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMultiSelect"]) > div[data-testid="stColumn"]{flex:1 1 100% !important; min-width:100% !important;}
+  div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMultiSelect"]) > div[data-testid="stColumn"]{flex:1 1 100% !important; width:100% !important; min-width:100% !important;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none !important;}}
 </style>
