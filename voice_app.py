@@ -15,6 +15,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 
 # Google Gemini AI
 import google.generativeai as genai
@@ -284,6 +286,29 @@ def get_google_worksheet():
     """Connect to the configured Google Sheet using Streamlit secrets."""
     spreadsheet = _google_client().open_by_key(GOOGLE_SHEET_ID)
     return spreadsheet.worksheet(SHEET_NAME)
+
+
+def upload_defect_image(uploaded_file):
+    """Upload a defect photo to the configured Drive folder and return its URL."""
+    service_account_info = dict(st.secrets["gcp_service_account"])
+    credentials = Credentials.from_service_account_info(
+        service_account_info,
+        scopes=["https://www.googleapis.com/auth/drive"],
+    )
+    drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
+    metadata = {"name": uploaded_file.name}
+    folder_id = st.secrets.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
+    if folder_id:
+        metadata["parents"] = [folder_id]
+    media = MediaIoBaseUpload(
+        io.BytesIO(uploaded_file.getvalue()),
+        mimetype=uploaded_file.type or "application/octet-stream",
+        resumable=True,
+    )
+    created = drive.files().create(
+        body=metadata, media_body=media, fields="id,webViewLink"
+    ).execute()
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{created['id']}/view"
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -1003,11 +1028,17 @@ if page == "➕ Add Audit Data":
                 with v7:
                     defect = st.text_input("Defect Description", placeholder="Defect description",
                                            key=f"nomenclature_defect_{idx}")
+                defect_image = st.file_uploader(
+                    "Defect picture (optional)",
+                    type=["jpg", "jpeg", "png", "webp"],
+                    key=f"nomenclature_image_{idx}",
+                    help="The picture is uploaded to Google Drive when you save this audit.",
+                )
 
             nomenclature_entries.append({
                 "type": entry_type.strip(), "category": entry_category.strip(),
                 "department": department.strip(), "qty": int(entry_qty), "class": entry_class, "zone": entry_zone,
-                "vloc": vloc, "area": area, "part": part.strip(),
+                "vloc": vloc, "area": area, "part": part.strip(), "image": defect_image,
                 "ploc": ploc, "defect": defect.strip(),
             })
 
@@ -1116,6 +1147,9 @@ if page == "➕ Add Audit Data":
                         col = f"{field} {n}"
                         if col not in df_existing.columns:
                             df_existing[col] = pd.NA
+                    image_col = f"Defect Image {n}"
+                    if image_col not in df_existing.columns:
+                        df_existing[image_col] = pd.NA
 
                 # Reliable duplicate check: match the chassis-specific column only,
                 # normalize case and remove spaces/punctuation on both sides.
@@ -1138,6 +1172,8 @@ if page == "➕ Add Audit Data":
                         ("Zone", item["zone"]), ("QTY", item["qty"]),
                     ]:
                         new_entry[f"{field} {n}"] = value
+                    if item["image"] is not None:
+                        new_entry[f"Defect Image {n}"] = upload_defect_image(item["image"])
                 for col in df_existing.columns:
                     if col not in new_entry:
                         new_entry[col] = pd.NA
