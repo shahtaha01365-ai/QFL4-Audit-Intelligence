@@ -453,6 +453,17 @@ def make_ai_context(d):
     return summary_str + recent_str
 
 
+def clean_ai_answer(answer):
+    """Strip raw Markdown artifacts and excessive whitespace from Gemini output."""
+    text = str(answer or "").strip()
+    text = re.sub(r"```(?:[\w+-]+)?", "", text)
+    text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", text)
+    text = re.sub(r"\*{1,3}|_{1,3}", "", text)
+    text = re.sub(r"(?m)^\s*[-•]\s+", "• ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip() or "I could not generate an answer from the current audit data."
+
+
 def ai_answer(q, d):
     if not init_gemini():
         return "Gemini API key is not configured. Please add GEMINI_API_KEY to Streamlit Secrets."
@@ -469,7 +480,9 @@ STRICT DATA RULES:
 3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period.
 4. Respect active dashboard filters.
 5. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
-6. Keep answers concise, accurate, and fast.
+6. Answer only what the user asked, in at most 3 short sentences. Give the exact result first, followed by only the context needed to explain it.
+7. Do not reproduce raw rows, tables, JSON, code, or the supplied context. Do not use asterisks, Markdown headings, or decorative symbols. Use a short bullet list only when the question has multiple parts.
+8. If the supplied data cannot establish the answer, say so plainly and do not guess.
 
 ACTIVE FILTERED AUDIT DATA & SUMMARIES:
 Columns: {", ".join(map(str, d.columns))}
@@ -479,9 +492,11 @@ USER QUESTION: {q}"""
 
     try:
         model = genai.GenerativeModel(AI_MODEL)
-        response = model.generate_content(prompt)
-        answer = response.text
-        return answer.strip() or "I could not generate an answer from the current audit data."
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.2, "max_output_tokens": 400},
+        )
+        return clean_ai_answer(response.text)
     except Exception as exc:
         return f"Gemini AI request failed: {exc}"
 
@@ -500,7 +515,7 @@ STRICT DATA RULES:
 1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
 3. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
-4. Keep answers concise and clear.
+4. Answer only what the user asked, in at most 3 short sentences. Give the exact result first; do not reproduce raw rows, tables, JSON, code, Markdown headings, or asterisks. Do not guess when the data cannot establish the answer.
 
 ACTIVE FILTERED AUDIT DATA & SUMMARIES:
 Columns: {", ".join(map(str, d.columns))}
@@ -512,7 +527,7 @@ Columns: {", ".join(map(str, d.columns))}
             {"mime_type": "audio/webm", "data": audio_bytes},
             prompt,
         ])
-        return response.text.strip() or "I could not understand the audio recording."
+        return clean_ai_answer(response.text)
     except Exception as exc:
         return f"Voice processing failed: {exc}"
 
@@ -586,6 +601,7 @@ def render_ai_assistant(filtered):
     if audio_data and "bytes" in audio_data:
         with qfl4_spinner("Processing voice recording with Gemini..."):
             answer = ai_answer_audio(audio_data["bytes"], filtered)
+        answer = clean_ai_answer(answer)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI VOICE RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
@@ -593,6 +609,7 @@ def render_ai_assistant(filtered):
         st.session_state.last_q = text_question
         with qfl4_spinner("Analysing audit data with Gemini..."):
             answer = ai_answer(text_question, filtered)
+        answer = clean_ai_answer(answer)
         st.markdown(f'<div class="answer-card"><div class="answer-label">AI RESPONSE</div><div class="answer-text">{html.escape(answer)}</div></div>', unsafe_allow_html=True)
         speak(answer)
 
@@ -840,8 +857,8 @@ if page == "➕ Add Audit Data":
     if st.session_state.pop("clear_audit_form_on_rerun", False):
         st.session_state["nomenclature_rows_count"] = 1
         st.session_state["audit_date_live"] = datetime.now().date()
-        st.session_state["vehicle_name_live"] = "FUSO Canter"
-        st.session_state["model_name_live"] = "FE84"
+        st.session_state["vehicle_name_live"] = "Canter TD Safety"
+        st.session_state["model_name_live"] = "FE856SRDR3"
         st.session_state["chassis_no_vehicle_details"] = ""
         st.session_state["engine_no_live"] = ""
         for key, default in {
@@ -889,8 +906,12 @@ if page == "➕ Add Audit Data":
         c1, c2 = st.columns(2)
         with c1:
             audit_date = st.date_input("Date", datetime.now(), key="audit_date_live")
-            vehicle_name = st.text_input("Vehicle Name", "FUSO Canter", key="vehicle_name_live")
-            model_name = st.text_input("Model", "FE84", key="model_name_live")
+            if st.session_state.get("vehicle_name_live") in (None, "FUSO Canter"):
+                st.session_state["vehicle_name_live"] = "Canter TD Safety"
+            if st.session_state.get("model_name_live") in (None, "FE84"):
+                st.session_state["model_name_live"] = "FE856SRDR3"
+            vehicle_name = st.text_input("Vehicle Name", "Canter TD Safety", key="vehicle_name_live")
+            model_name = st.text_input("Model", "FE856SRDR3", key="model_name_live")
         with c2:
             chassis_no = st.text_input("Chassis No.", "", key="chassis_no_vehicle_details")
             engine_no = st.text_input("Engine No.", placeholder="Enter engine number", key="engine_no_live")
