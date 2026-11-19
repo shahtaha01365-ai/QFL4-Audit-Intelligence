@@ -879,7 +879,7 @@ if page == "➕ Add Audit Data":
         st.session_state["nomenclature_rows_count"] = 1
         st.session_state["audit_date_live"] = datetime.now().date()
         st.session_state["vehicle_name_live"] = "Canter TD Safety"
-        st.session_state["model_name_live"] = "FE856SRDR3"
+        st.session_state["model_name_live"] = "FE85PG6SRDR3"
         st.session_state["chassis_no_vehicle_details"] = ""
         st.session_state["engine_no_live"] = ""
         for key, default in {
@@ -930,9 +930,9 @@ if page == "➕ Add Audit Data":
             if st.session_state.get("vehicle_name_live") in (None, "FUSO Canter"):
                 st.session_state["vehicle_name_live"] = "Canter TD Safety"
             if st.session_state.get("model_name_live") in (None, "FE84"):
-                st.session_state["model_name_live"] = "FE856SRDR3"
+                st.session_state["model_name_live"] = "FE85PG6SRDR3"
             vehicle_name = st.text_input("Vehicle Name", "Canter TD Safety", key="vehicle_name_live")
-            model_name = st.text_input("Model", "FE856SRDR3", key="model_name_live")
+            model_name = st.text_input("Model", "FE85PG6SRDR3", key="model_name_live")
         with c2:
             chassis_no = st.text_input("Chassis No.", "", key="chassis_no_vehicle_details")
             engine_no = st.text_input("Engine No.", placeholder="Enter engine number", key="engine_no_live")
