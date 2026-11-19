@@ -749,6 +749,9 @@ nav_pages = [
 if st.session_state.get("role") == "admin":
     nav_pages += ["➕ Add Audit Data", "🗑️ Delete Audit Entry", "👥 Manage Users"]
 
+if st.session_state.get("role") == "admin":
+    nav_pages.append("Edit Defect Entry")
+
 ai_ready = bool(st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")))
 page = render_sidebar(
     nav_pages,
@@ -757,6 +760,19 @@ page = render_sidebar(
     ai_ready,
     len(df),
 )
+
+if page == "Edit Defect Entry":
+    from edit_audit_ui import render_edit_defect_entry
+
+    render_edit_defect_entry(
+        load_excel,
+        save_google_sheet,
+        upload_defect_image,
+        delete_drive_images,
+        find_col,
+        _drive_file_id,
+    )
+    st.stop()
 
 
 # ============================================================
