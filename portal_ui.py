@@ -752,6 +752,52 @@ def _class_zone_charts(filtered, F):
 
 
 def render_overview(filtered, C, F):
+    # When the dashboard filters down to one vehicle, show every stored
+    # numbered defect and its full five-part nomenclature near the top.
+    if C.chassis and C.chassis in filtered.columns and not filtered.empty:
+        selected_chassis_values = filtered[C.chassis].dropna().astype(str).str.strip().unique().tolist()
+        if len(selected_chassis_values) == 1:
+            selected_chassis = selected_chassis_values[0]
+            numbered_cols = sorted(
+                (int(match.group(1)), col)
+                for col in filtered.columns
+                if (match := re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE))
+            )
+            details = []
+            for _, vehicle_row in filtered.iterrows():
+                slots = numbered_cols or [(1, C.defect)]
+                for number, nomenclature_col in slots:
+                    if not nomenclature_col:
+                        continue
+                    nomenclature = vehicle_row.get(nomenclature_col, "")
+                    if pd.isna(nomenclature) or not str(nomenclature).strip():
+                        continue
+
+                    def field_value(name, fallback=""):
+                        column = _find(filtered, [name])
+                        value = vehicle_row.get(column, fallback) if column else fallback
+                        return fallback if pd.isna(value) else value
+
+                    details.append({
+                        "Defect entry": number,
+                        "Defect type": field_value(f"Defect Type {number}", field_value("Defect Type")),
+                        "Category": field_value(f"Defect Category {number}", field_value("Defect Category")),
+                        "Department": field_value(f"Department {number}", field_value("Department")),
+                        "Class": field_value(f"Defect Class {number}"),
+                        "Zone": field_value(f"Zone {number}"),
+                        "Quantity": field_value(f"QTY {number}", field_value("QTY", 0)),
+                        "Complete nomenclature": str(nomenclature).strip(),
+                    })
+
+            section_header(
+                "Complete defect nomenclature",
+                f"All defect entries recorded for chassis {selected_chassis}.",
+            )
+            if details:
+                st.dataframe(pd.DataFrame(details), hide_index=True, width="stretch")
+            else:
+                st.info("No defect nomenclature is recorded for this chassis.")
+
     kpi_grid([
         ("Vehicles audited", F.vehicle_count(filtered), "blue", "🚗", "Unique chassis in view"),
         ("Total defects", F.total_defects(filtered), "red", "⚠️", "All classes combined"),

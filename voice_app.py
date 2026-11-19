@@ -1642,49 +1642,4 @@ elif page in ("🚗 Vehicle Audit", "📋 Audit Data"):
 elif page == "Download Reports":
     render_audit_report_download(filtered)
 
-if str(page).casefold().endswith("overview") and selected_chassis != "All" and chassis_col:
-    selected_vehicle_rows = df[df[chassis_col].astype(str) == selected_chassis]
-    numbered_defect_cols = []
-    for column in df.columns:
-        defect_match = re.fullmatch(r"Defect\s*(\d+)", str(column).strip(), flags=re.IGNORECASE)
-        if defect_match:
-            numbered_defect_cols.append((int(defect_match.group(1)), column))
-    numbered_defect_cols.sort()
-
-    detail_rows = []
-    for _, vehicle_row in selected_vehicle_rows.iterrows():
-        row_slots = numbered_defect_cols or [(1, defect_col)]
-        for slot, nomenclature_col in row_slots:
-            if not nomenclature_col:
-                continue
-            nomenclature_value = vehicle_row.get(nomenclature_col, "")
-            nomenclature_value = "" if pd.isna(nomenclature_value) else str(nomenclature_value).strip()
-            if not nomenclature_value:
-                continue
-
-            def _detail_value(names, default=""):
-                column = find_col(df, names)
-                value = vehicle_row.get(column, default) if column else default
-                return default if pd.isna(value) else value
-
-            detail_rows.append({
-                "Defect entry": slot,
-                "Defect type": _detail_value([f"Defect Type {slot}", "Defect Type"]),
-                "Category": _detail_value([f"Defect Category {slot}", "Defect Category"]),
-                "Department": _detail_value([f"Department {slot}", "Department"]),
-                "Class": _detail_value([f"Defect Class {slot}"]),
-                "Zone": _detail_value([f"Zone {slot}"]),
-                "Quantity": _detail_value([f"QTY {slot}", "QTY"], 0),
-                "Complete nomenclature": nomenclature_value,
-            })
-
-    section_header(
-        "Complete defect nomenclature",
-        f"All defect entries recorded for chassis {selected_chassis}.",
-    )
-    if detail_rows:
-        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width="stretch")
-    else:
-        st.info("No defect nomenclature is recorded for this chassis.")
-
 render_footer()
