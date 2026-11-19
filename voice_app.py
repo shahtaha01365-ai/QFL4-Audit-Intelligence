@@ -15,6 +15,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import gspread
 from google.oauth2.service_account import Credentials
+from google.oauth2.credentials import Credentials as OAuthCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
@@ -290,11 +291,24 @@ def get_google_worksheet():
 
 def upload_defect_image(uploaded_file):
     """Upload a defect photo to the configured Drive folder and return its URL."""
-    service_account_info = dict(st.secrets["gcp_service_account"])
-    credentials = Credentials.from_service_account_info(
-        service_account_info,
-        scopes=["https://www.googleapis.com/auth/drive"],
-    )
+    oauth = st.secrets.get("google_drive_oauth", {})
+    refresh_token = oauth.get("refresh_token", "").strip()
+    if refresh_token:
+        credentials = OAuthCredentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=oauth.get("client_id", ""),
+            client_secret=oauth.get("client_secret", ""),
+            # The configured destination folder already exists in the user's
+            # Drive, so drive.file alone may not grant access to that folder.
+            scopes=["https://www.googleapis.com/auth/drive"],
+        )
+    else:
+        raise RuntimeError(
+            "Google Drive OAuth is not configured. Add [google_drive_oauth] "
+            "with client_id, client_secret, and refresh_token to Streamlit Secrets."
+        )
     drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
     metadata = {"name": uploaded_file.name}
     folder_id = st.secrets.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
