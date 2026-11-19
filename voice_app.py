@@ -122,7 +122,7 @@ if st.session_state.get("audit_delete_notice"):
     delete_notice = html.escape(str(st.session_state.pop("audit_delete_notice")))
     st.html(
         f"""
-        <div style="position:fixed;inset:0;z-index:2147483647;display:grid;
+        <div id="audit-delete-toast" style="position:fixed;inset:0;z-index:2147483647;display:grid;
                     place-items:center;pointer-events:none;font-family:Inter,'Segoe UI',sans-serif">
           <div role="status" aria-live="polite"
                style="box-sizing:border-box;display:flex;align-items:center;gap:14px;
@@ -149,7 +149,14 @@ if st.session_state.get("audit_delete_notice"):
           }}
         </style>
         <script>
-          window.setTimeout(() => window.parent.location.reload(), 2500);
+          window.setTimeout(() => {{
+            const toast = window.parent.document.getElementById("audit-delete-toast");
+            if (toast) {{
+              toast.style.transition = "opacity .25s ease";
+              toast.style.opacity = "0";
+              window.setTimeout(() => toast.remove(), 300);
+            }}
+          }}, 3000);
         </script>
         """,
         unsafe_allow_javascript=True,
