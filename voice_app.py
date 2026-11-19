@@ -303,27 +303,56 @@ def get_google_worksheet():
     return spreadsheet.worksheet(SHEET_NAME)
 
 
-def upload_defect_image(uploaded_file):
-    """Upload a defect photo to the configured Drive folder and return its URL."""
+def _google_drive_client():
+    """Create a Drive client authenticated as the account that owns the photos."""
     oauth = st.secrets.get("google_drive_oauth", {})
     refresh_token = oauth.get("refresh_token", "").strip()
-    if refresh_token:
-        credentials = OAuthCredentials(
-            token=None,
-            refresh_token=refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=oauth.get("client_id", ""),
-            client_secret=oauth.get("client_secret", ""),
-            # The configured destination folder already exists in the user's
-            # Drive, so drive.file alone may not grant access to that folder.
-            scopes=["https://www.googleapis.com/auth/drive"],
-        )
-    else:
+    if not refresh_token:
         raise RuntimeError(
             "Google Drive OAuth is not configured. Add [google_drive_oauth] "
             "with client_id, client_secret, and refresh_token to Streamlit Secrets."
         )
-    drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
+    credentials = OAuthCredentials(
+        token=None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=oauth.get("client_id", ""),
+        client_secret=oauth.get("client_secret", ""),
+        scopes=["https://www.googleapis.com/auth/drive"],
+    )
+    return build("drive", "v3", credentials=credentials, cache_discovery=False)
+
+
+def _drive_file_id(file_url):
+    """Extract a Google Drive file ID from common Drive URL formats."""
+    value = str(file_url or "").strip()
+    match = re.search(r"/file/d/([A-Za-z0-9_-]+)", value)
+    if not match:
+        match = re.search(r"[?&]id=([A-Za-z0-9_-]+)", value)
+    return match.group(1) if match else ""
+
+
+def delete_drive_images(file_urls):
+    """Delete Drive image files and return (deleted count, failed count)."""
+    file_ids = {_drive_file_id(url) for url in file_urls}
+    file_ids.discard("")
+    if not file_ids:
+        return 0, 0
+
+    drive = _google_drive_client()
+    deleted = failed = 0
+    for file_id in file_ids:
+        try:
+            drive.files().delete(fileId=file_id).execute()
+            deleted += 1
+        except Exception:
+            failed += 1
+    return deleted, failed
+
+
+def upload_defect_image(uploaded_file):
+    """Upload a defect photo to the configured Drive folder and return its URL."""
+    drive = _google_drive_client()
     metadata = {"name": uploaded_file.name}
     folder_id = st.secrets.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
     if folder_id:
@@ -865,11 +894,41 @@ if page == "🗑️ Delete Audit Entry":
                         use_container_width=True,
                         disabled=not confirm_delete,
                     ):
-                        df_delete = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
-                        save_google_sheet(df_delete)
-                        st.session_state["audit_delete_notice"] = (
-                            f"All audit entries for chassis {selected_chassis_delete} were deleted."
+                        image_cols = [
+                            col for col in df_delete.columns
+                            if re.fullmatch(r"Defect Image\s*\d+", str(col).strip(), flags=re.IGNORECASE)
+                        ]
+                        selected_image_urls = (
+                            df_delete.loc[matching_delete_rows, image_cols].to_numpy().ravel().tolist()
+                            if image_cols else []
                         )
+                        df_remaining = df_delete.drop(index=matching_delete_rows).reset_index(drop=True)
+                        remaining_file_ids = {
+                            _drive_file_id(url)
+                            for url in df_remaining[image_cols].to_numpy().ravel().tolist()
+                        } if image_cols else set()
+                        image_urls_to_delete = [
+                            url for url in selected_image_urls
+                            if _drive_file_id(url) and _drive_file_id(url) not in remaining_file_ids
+                        ]
+                        df_delete = df_remaining
+                        save_google_sheet(df_delete)
+                        try:
+                            images_deleted, image_delete_failures = delete_drive_images(image_urls_to_delete)
+                            delete_message = (
+                                f"Audit entries for chassis {selected_chassis_delete} were deleted. "
+                                f"{images_deleted} linked photo(s) removed from Google Drive."
+                            )
+                            if image_delete_failures:
+                                delete_message += (
+                                    f" {image_delete_failures} photo(s) could not be deleted from Drive."
+                                )
+                        except Exception:
+                            delete_message = (
+                                f"Audit entries for chassis {selected_chassis_delete} were deleted, "
+                                f"but {len(image_urls_to_delete)} linked photo(s) could not be deleted from Drive."
+                            )
+                        st.session_state["audit_delete_notice"] = delete_message
                         st.rerun()
     except Exception as exc:
         st.error(f"An error occurred while deleting the audit entry: {exc}")
