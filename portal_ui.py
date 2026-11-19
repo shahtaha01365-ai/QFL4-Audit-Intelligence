@@ -104,21 +104,27 @@ section[data-testid="stSidebar"]{background:linear-gradient(180deg,#0f1b2d 0%,#0
 section[data-testid="stSidebar"][aria-expanded="true"]{min-width:276px !important; max-width:min(276px,86vw) !important;}
 section[data-testid="stSidebar"] > div:first-child{
   box-sizing:border-box; height:100dvh; max-height:100dvh; overflow:hidden;
-  padding:0 .85rem .9rem;
+  padding:0 .85rem .5rem;
 }
 section[data-testid="stSidebar"] [data-testid="stSidebarHeader"]{
-  box-sizing:border-box; position:relative; height:24px; min-height:24px; padding:0; overflow:visible;
+  box-sizing:border-box; position:relative; height:34px; min-height:34px; padding:0; overflow:visible;
 }
 section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button{
-  position:absolute; top:0; right:0; z-index:20;
+  position:absolute; top:2px; right:0; z-index:20; display:flex !important;
+  visibility:visible !important; opacity:1 !important; align-items:center; justify-content:center;
+  width:30px; height:28px; padding:0; color:#fff !important;
+  background:rgba(255,255,255,.10) !important; border:1px solid rgba(255,255,255,.24) !important;
+  border-radius:8px !important;
 }
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button svg{color:#fff !important; fill:#fff !important;}
 section[data-testid="stSidebar"] .st-key-sidebar_scroll_area{
   box-sizing:border-box; height:calc(100dvh - 486px); max-height:calc(100dvh - 486px);
   min-height:100px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin;
 }
-section[data-testid="stSidebar"] .st-key-sidebar_footer{margin-top:0; padding-top:4px;}
+section[data-testid="stSidebar"] .st-key-sidebar_footer{margin-top:0; padding-top:2px;}
+section[data-testid="stSidebar"] .st-key-sidebar_footer [data-testid="stVerticalBlock"]{gap:.4rem;}
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, [data-testid="stSidebar"] label p{color:#c7d2e0 !important;}
-[data-testid="stSidebarHeader"] button, [data-testid="stSidebarCollapseButton"] button{color:#c7d2e0 !important;}
+[data-testid="stSidebarHeader"] button, [data-testid="stSidebarCollapseButton"] button{color:#fff !important;}
 [data-testid="stSidebarCollapsedControl"] button, [data-testid="collapsedControl"] button{
   background:var(--navy) !important; color:#fff !important; border-radius:12px !important; box-shadow:0 6px 16px rgba(15,27,45,.25);
 }
@@ -687,7 +693,6 @@ def render_sidebar(nav_pages, user_email, role, ai_ready, records=0):
                 f'<div><span><i class="{ai_dot}"></i>Gemini AI</span><b>{ai_txt}</b></div></div>',
                 unsafe_allow_html=True,
             )
-            st.write("")
             if st.button("Sign out", use_container_width=True, key="logout_btn"):
                 clear_auth_cookie()
                 st.session_state.logged_in = False
