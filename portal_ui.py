@@ -633,6 +633,7 @@ _PAGE_LABELS = {
     "🧩 Class & Zone": "Class & zone",
     "📋 Audit Data": "Audit data",
     "Download Reports": "Download reports",
+    "Edit Defect Entry": "Edit defect entry",
     "➕ Add Audit Data": "Add audit data",
     "🗑️ Delete Audit Entry": "Delete audit entry",
     "👥 Manage Users": "Manage users",
@@ -643,6 +644,7 @@ _NAV_GROUPS = (
     ("Analytics", ("🎙️ AI Assistant", "⚠️ Total Defects", "📈 Pareto Analysis", "🧩 Class & Zone")),
     ("Audit records", ("🚗 Vehicle Audit", "📋 Audit Data", "📄 Download Chassis Sheet")),
     ("Reports", ("Download Reports",)),
+    ("Audit actions", ("Edit Defect Entry",)),
     ("Administration", ("➕ Add Audit Data", "🗑️ Delete Audit Entry", "👥 Manage Users")),
 )
 
@@ -656,6 +658,7 @@ _NAV_ICONS = {
     "🚗 Vehicle Audit": ":material/local_shipping:",
     "📋 Audit Data": ":material/table_chart:",
     "Download Reports": ":material/picture_as_pdf:",
+    "Edit Defect Entry": ":material/edit:",
     "📄 Download Chassis Sheet": ":material/download:",
     "➕ Add Audit Data": ":material/add_circle:",
     "🗑️ Delete Audit Entry": ":material/delete:",
