@@ -919,7 +919,7 @@ if page == "➕ Add Audit Data":
     # Keep the defect rows horizontal and let the admin choose how many
     # nomenclature entries belong to this chassis.
     defect_rows_count = st.number_input(
-        "Number of Defects for this Chassis",
+        "Number of Defects for this Vehicle",
         min_value=1,
         max_value=30,
         value=1,
