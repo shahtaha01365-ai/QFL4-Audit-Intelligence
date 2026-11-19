@@ -104,9 +104,6 @@ if st.session_state.get("audit_save_notice"):
             to {{ opacity:1; transform:translateY(0) scale(1); }}
           }}
         </style>
-        <script>
-          window.setTimeout(() => window.parent.location.reload(), 2000);
-        </script>
         """,
         unsafe_allow_javascript=True,
     )
