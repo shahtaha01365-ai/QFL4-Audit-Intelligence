@@ -248,6 +248,22 @@ def vehicle_count(d):
 
 
 def class_total(d, label):
+    # Newer audits store class and quantity per defect entry. Prefer those
+    # pairs over the legacy CLASS A/B/C/D rollups, which can be absent or stale.
+    class_cols = []
+    for col in d.columns:
+        match = re.fullmatch(r"\s*(?:Defect\s*)?Class\s*(\d+)\s*", str(col), flags=re.IGNORECASE)
+        if match:
+            class_cols.append((int(match.group(1)), col))
+    if class_cols:
+        total = 0
+        for number, class_col in class_cols:
+            qty_col = find_col(d, [f"QTY {number}", f"Quantity {number}", f"Defect Qty {number}", f"Defect Quantity {number}"])
+            if qty_col:
+                classes = d[class_col].astype(str).str.strip().str.upper()
+                quantities = pd.to_numeric(d[qty_col], errors="coerce").fillna(0)
+                total += int(quantities[classes.eq(str(label).strip().upper())].sum())
+        return total
     return nsum(d, find_col(d, [f"CLASS {label}", f"Class {label}", f"CLASS_{label}"]))
 
 
@@ -256,8 +272,9 @@ def zone_total(d, label):
 
 
 def ab_total(d):
-    c = find_col(d, ["A+B", "A + B", "AB", "A B"])
-    return nsum(d, c) if c else class_total(d, "A") + class_total(d, "B")
+    # Always derive from the same per-defect data used by the class chart.
+    # A legacy A+B summary column may be stale after individual entries change.
+    return class_total(d, "A") + class_total(d, "B")
 
 
 def total_defects(d):
