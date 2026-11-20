@@ -705,14 +705,10 @@ if (
             st.session_state.portal_loading = True
 
 if not st.session_state.logged_in:
-    # The login form runs during this same Streamlit script execution.
-    # Re-check session_state after rendering it: stop only when login is
-    # still unsuccessful. If credentials were accepted, rerun the script
-    # so execution continues through the authenticated portal below.
+    # Let the login response reach the browser so its auth-cookie script can
+    # run before a fresh request restores the authenticated session.
     login(load_users, save_users)
-    if not st.session_state.get("logged_in", False):
-        st.stop()
-    st.rerun()
+    st.stop()
 
 user_email = st.session_state.get("user_email", "")
 user_profile = load_users().get(user_email, {})
