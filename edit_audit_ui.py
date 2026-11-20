@@ -159,8 +159,41 @@ def render_edit_defect_entry(load_data, save_data, upload_image, delete_images, 
     if slot == 1:
         for name, value in [("Defect Type", defect_type), ("Defect Category", defect_category), ("Department", department)]:
             col = find_col(data, [name])
-            if col:
-                data.at[row_index, col] = value
+            if col is None:
+                col = name
+                data[col] = pd.NA
+            data.at[row_index, col] = value
+
+    # Keep the leading CLASS/ZONE summary cells in sync with the numbered
+    # defect entries. The dashboard and exported audit sheet use these totals.
+    for field, summary_prefix, options in (
+        ("Defect Class", "CLASS", "ABCD"),
+        ("Zone", "ZONE", "ABCD"),
+    ):
+        entry_columns = []
+        for col in data.columns:
+            match = re.fullmatch(rf"{field}\s*(\d+)", str(col).strip(), flags=re.IGNORECASE)
+            if match:
+                entry_columns.append((int(match.group(1)), col))
+        for option in options:
+            total = 0
+            for number, entry_col in entry_columns:
+                qty_col = find_col(data, [f"QTY {number}", f"Quantity {number}"])
+                if not qty_col:
+                    continue
+                raw_entry_value = data.at[row_index, entry_col]
+                entry_value = "" if pd.isna(raw_entry_value) else str(raw_entry_value).strip().upper()
+                if entry_value == option:
+                    qty_value = pd.to_numeric(
+                        pd.Series([data.at[row_index, qty_col]]), errors="coerce"
+                    ).fillna(0).iloc[0]
+                    total += int(qty_value)
+            summary_col = find_col(data, [f"{summary_prefix} {option}", f"{summary_prefix}_{option}"])
+            if summary_col is None:
+                summary_col = f"{summary_prefix} {option}"
+                data[summary_col] = 0
+            data.at[row_index, summary_col] = total
+
     total_qty_col = find_col(data, ["QTY"])
     qty_cols = [col for col in data.columns if re.fullmatch(r"QTY\s*\d+", str(col).strip(), flags=re.IGNORECASE)]
     if total_qty_col and qty_cols:
