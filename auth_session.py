@@ -92,6 +92,10 @@ def set_auth_cookie(token: str) -> None:
         window.parent.document.cookie =
             "qfl4_auth=" + {encoded_token} +
             "; Path=/; Max-Age={AUTH_COOKIE_TTL_SECONDS}; SameSite=Lax" + secure;
+        // Start the authenticated app from a fresh document request. This
+        // makes the browser send the new cookie immediately, so authentication
+        // survives a manual refresh instead of relying on Streamlit state.
+        window.setTimeout(() => window.parent.location.reload(), 150);
         </script>
         """,
         unsafe_allow_javascript=True,
