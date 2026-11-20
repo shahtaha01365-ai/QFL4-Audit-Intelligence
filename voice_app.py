@@ -24,7 +24,7 @@ import google.generativeai as genai
 from streamlit_mic_recorder import mic_recorder
 
 # UI modules (keep these files in the same folder as this file)
-from auth_session import AUTH_COOKIE_NAME, restore_auth_session
+from auth_session import AUTH_COOKIE_NAME, create_auth_token, restore_auth_session, set_auth_cookie
 from login_ui import login
 from loading_ui import PORTAL_LOADING_HTML, qfl4_spinner
 
@@ -705,12 +705,17 @@ if (
             st.session_state.portal_loading = True
 
 if not st.session_state.logged_in:
-    # Re-check after rendering the form. A successful login must rerun the
-    # script so the authenticated portal replaces the login screen.
-    login(load_users, save_users)
+    login_placeholder = st.empty()
+    with login_placeholder.container():
+        login(load_users, save_users)
     if not st.session_state.get("logged_in", False):
         st.stop()
-    st.rerun()
+    # The form is gone before the cookie script is emitted. Continue this run
+    # into the portal so the browser can execute the script without a rerun
+    # interrupting it.
+    login_placeholder.empty()
+    st.session_state.portal_loading = True
+    set_auth_cookie(create_auth_token(st.session_state.user_email))
 
 user_email = st.session_state.get("user_email", "")
 user_profile = load_users().get(user_email, {})

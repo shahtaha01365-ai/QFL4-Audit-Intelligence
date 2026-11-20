@@ -5,7 +5,6 @@ from pathlib import Path
 
 import streamlit as st
 
-from auth_session import create_auth_token, set_auth_cookie
 
 APP_DIR = Path(__file__).resolve().parent
 
@@ -283,7 +282,6 @@ def login(load_users, save_users):
                                 st.session_state.role = account.get("role", "user")
                                 st.session_state.auth_cookie_revoked = False
                                 st.session_state.portal_loading = True
-                                set_auth_cookie(create_auth_token(e_clean))
                             else:
                                 st.error("Incorrect password.")
                         else:

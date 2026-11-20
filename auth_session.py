@@ -92,9 +92,6 @@ def set_auth_cookie(token: str) -> None:
         document.cookie =
             "{AUTH_COOKIE_NAME}=" + {encoded_token} +
             "; Path=/; Max-Age={AUTH_COOKIE_TTL_SECONDS}; SameSite=Lax" + secure;
-        // Reload the Streamlit app origin so it receives the cookie on its
-        // next request, including when Streamlit is hosted inside a frame.
-        window.setTimeout(() => window.location.reload(), 250);
         </script>
         """,
         unsafe_allow_javascript=True,
