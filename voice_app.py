@@ -705,10 +705,12 @@ if (
             st.session_state.portal_loading = True
 
 if not st.session_state.logged_in:
-    # Let the login response reach the browser so its auth-cookie script can
-    # run before a fresh request restores the authenticated session.
+    # Re-check after rendering the form. A successful login must rerun the
+    # script so the authenticated portal replaces the login screen.
     login(load_users, save_users)
-    st.stop()
+    if not st.session_state.get("logged_in", False):
+        st.stop()
+    st.rerun()
 
 user_email = st.session_state.get("user_email", "")
 user_profile = load_users().get(user_email, {})
