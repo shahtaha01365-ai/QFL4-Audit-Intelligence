@@ -14,7 +14,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 
 from auth_session import clear_auth_cookie
 from loading_ui import FUSO_LOGO_DATA_URI, PORTAL_LOADING_HTML
@@ -545,7 +544,7 @@ def render_page_header(page, df, user_email=""):
 # ------------------------------------------------------------
 _MOBILE_NAV_JS = """
 <script>
-const doc = window.parent.document;
+const doc = document;
 const loaderMarkup = __QFL4_PORTAL_LOADING_HTML__;
 const loaderId = "qfl4-navigation-loader";
 function showLoader(timeoutMs){
@@ -579,7 +578,7 @@ function bindNav(){
     if(button.getAttribute('kind') !== 'primary'){
       button.addEventListener('click', function(){ showLoader(); }, true);
     }
-    if(window.parent.innerWidth <= 768){
+    if(window.innerWidth <= 768){
       button.addEventListener('click', function(){
         setTimeout(function(){
           var collapse = doc.querySelector('[data-testid="stSidebarCollapseButton"] button') || doc.querySelector('[data-testid="stSidebarHeader"] button');
@@ -595,7 +594,7 @@ function bindNav(){
       if(!input || !input.checked) showLoader();
     }, true);
     l.addEventListener('click', function(){
-      if(window.parent.innerWidth <= 768){
+      if(window.innerWidth <= 768){
         setTimeout(function(){
           var b = doc.querySelector('[data-testid="stSidebarCollapseButton"] button') || doc.querySelector('[data-testid="stSidebarHeader"] button');
           if(b) b.click();
@@ -617,8 +616,13 @@ if(priorLoader){
     if(activeOverlay) activeOverlay.remove();
   }, 2500);
 }
-bindNav();
-new MutationObserver(bindNav).observe(doc.body, {childList:true, subtree:true});
+if(!window.__qfl4NavLoaderInitialized){
+  window.__qfl4NavLoaderInitialized = true;
+  bindNav();
+  new MutationObserver(bindNav).observe(doc.body, {childList:true, subtree:true});
+} else {
+  bindNav();
+}
 </script>
 """.replace("__QFL4_PORTAL_LOADING_HTML__", json.dumps(PORTAL_LOADING_HTML))
 
@@ -726,7 +730,7 @@ def render_sidebar(nav_pages, user_email, role, ai_ready, records=0):
                 st.session_state.show_signup = False
                 st.session_state.auth_cookie_revoked = True
                 st.stop()
-        components.html(_MOBILE_NAV_JS, height=0)
+        st.html(_MOBILE_NAV_JS, unsafe_allow_javascript=True)
     return page
 
 

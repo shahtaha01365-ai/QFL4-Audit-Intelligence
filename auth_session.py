@@ -88,14 +88,13 @@ def set_auth_cookie(token: str) -> None:
     st.html(
         f"""
         <script>
-        const secure = window.parent.location.protocol === "https:" ? "; Secure" : "";
-        window.parent.document.cookie =
-            "qfl4_auth=" + {encoded_token} +
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie =
+            "{AUTH_COOKIE_NAME}=" + {encoded_token} +
             "; Path=/; Max-Age={AUTH_COOKIE_TTL_SECONDS}; SameSite=Lax" + secure;
-        // Start the authenticated app from a fresh document request. This
-        // makes the browser send the new cookie immediately, so authentication
-        // survives a manual refresh instead of relying on Streamlit state.
-        window.setTimeout(() => window.parent.location.reload(), 150);
+        // Reload the Streamlit app origin so it receives the cookie on its
+        // next request, including when Streamlit is hosted inside a frame.
+        window.setTimeout(() => window.location.reload(), 250);
         </script>
         """,
         unsafe_allow_javascript=True,
@@ -104,12 +103,12 @@ def set_auth_cookie(token: str) -> None:
 
 def clear_auth_cookie() -> None:
     st.html(
-        """
+        f"""
         <script>
-        const secure = window.parent.location.protocol === "https:" ? "; Secure" : "";
-        window.parent.document.cookie =
-            "qfl4_auth=; Path=/; Max-Age=0; SameSite=Lax" + secure;
-        window.setTimeout(() => window.parent.location.reload(), 100);
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie =
+            "{AUTH_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax" + secure;
+        window.setTimeout(() => window.location.reload(), 100);
         </script>
         """,
         unsafe_allow_javascript=True,
