@@ -198,6 +198,8 @@ section[data-testid="stSidebar"] .st-key-sidebar_footer [data-testid="stVertical
 .tone-blue{--accent:#2563a8; --soft:#eaf2fb;} .tone-red{--accent:#c8102e; --soft:#fdecef;}
 .tone-orange{--accent:#d97706; --soft:#fff4e5;} .tone-green{--accent:#15803d; --soft:#e8f6ee;}
 .tone-dark{--accent:#0f1b2d; --soft:#eaeef4;} .tone-slate{--accent:#475569; --soft:#eef1f5;}
+.tone-zone-a{--accent:#1f4e79; --soft:#eaf2fb;} .tone-zone-b{--accent:#2f7bbf; --soft:#e4f0fb;}
+.tone-zone-c{--accent:#3578ad; --soft:#e8f2fa;} .tone-zone-d{--accent:#477896; --soft:#edf4f8;}
 .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(var(--min,190px),1fr)); gap:14px; margin:6px 0 4px;}
 .kpi-card{position:relative; overflow:hidden; background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 18px 16px 20px; box-shadow:var(--shadow); transition:transform .15s, box-shadow .15s;}
 .kpi-card:hover{transform:translateY(-2px); box-shadow:0 14px 30px rgba(15,27,45,.09);}
@@ -815,7 +817,88 @@ def render_overview(filtered, C, F):
     with c1:
         tile_grid("Defect class", [(f"Class {k}", v, {"A": "red", "B": "orange", "C": "blue", "D": "green"}[k]) for k, v in cls.items()])
     with c2:
-        tile_grid("Audit zone", [(f"Zone {k}", v, "slate") for k, v in zone.items()])
+        tile_grid("Audit zone", [(f"Zone {k}", v, f"zone-{k.lower()}") for k, v in zone.items()])
+
+    st.html("""
+    <style>
+    .st-key-overview_defect_class_details summary {
+      background:linear-gradient(100deg,#fff2f4 0%,#f3f7fc 100%);
+      border:1px solid #e6d9dd; border-left:4px solid #c8102e;
+      border-radius:10px; color:#0f1b2d; padding:10px 14px;
+      transition:background .15s,border-color .15s,box-shadow .15s;
+    }
+    .st-key-overview_defect_class_details summary:hover {
+      background:linear-gradient(100deg,#fde8ec 0%,#eaf2fb 100%);
+      border-color:#c8102e; box-shadow:0 4px 12px rgba(15,27,45,.08);
+    }
+    .st-key-overview_defect_class_details summary p {font-weight:700;}
+    </style>
+    """)
+    with st.expander(
+        "View defect entries by class",
+        key="overview_defect_class_details",
+        icon=":material/visibility:",
+    ):
+        detail_class = st.selectbox(
+            "Defect class to inspect",
+            list("ABCD"),
+            index=2,
+            key="overview_defect_detail_class",
+        )
+        numbered_defects = sorted(
+            (int(match.group(1)), col)
+            for col in filtered.columns
+            if (match := re.fullmatch(r"Defect\s*(\d+)", str(col).strip(), flags=re.IGNORECASE))
+        )
+        detail_rows = []
+        for _, vehicle_row in filtered.iterrows():
+            slots = numbered_defects or [(1, C.defect)]
+            for number, defect_col in slots:
+                class_col = _find(filtered, [f"Defect Class {number}", f"Class {number}"])
+                if not class_col and number == 1:
+                    class_col = _find(filtered, ["Defect Class", "Class"])
+                if not class_col or str(vehicle_row.get(class_col, "")).strip().upper() != detail_class:
+                    continue
+
+                type_col = _find(filtered, [f"Defect Type {number}"])
+                category_col = _find(filtered, [f"Defect Category {number}"])
+                qty_col = _find(filtered, [f"QTY {number}"]) or C.qty
+                type_value = vehicle_row.get(type_col, "") if type_col else ""
+                if (pd.isna(type_value) or not str(type_value).strip()) and C.defect:
+                    type_value = vehicle_row.get(C.defect, "")
+                category_value = vehicle_row.get(category_col, "") if category_col else ""
+                if (pd.isna(category_value) or not str(category_value).strip()) and C.category:
+                    category_value = vehicle_row.get(C.category, "")
+                quantity_value = pd.to_numeric(
+                    pd.Series([vehicle_row.get(qty_col, 0) if qty_col else 0]), errors="coerce"
+                ).fillna(0).iloc[0]
+                nomenclature = vehicle_row.get(defect_col, "") if defect_col else ""
+                nomenclature = "" if pd.isna(nomenclature) else str(nomenclature).strip()
+                description_parts = [part.strip() for part in nomenclature.split("|")]
+                chassis_value = vehicle_row.get(C.chassis, "") if C.chassis else ""
+                detail_rows.append({
+                    "Chassis": "" if pd.isna(chassis_value) else str(chassis_value).strip(),
+                    "Entry": number,
+                    "Defect type": "" if pd.isna(type_value) else str(type_value).strip(),
+                    "Category": "" if pd.isna(category_value) else str(category_value).strip(),
+                    "Description": description_parts[4] if len(description_parts) > 4 else "",
+                    "Qty": quantity_value,
+                })
+
+        if detail_rows:
+            detail_frame = pd.DataFrame(detail_rows)
+            st.caption(
+                f"{int(detail_frame['Qty'].sum()):,} total quantity across "
+                f"{len(detail_frame):,} Class {detail_class} entries."
+            )
+            st.dataframe(
+                detail_frame,
+                hide_index=True,
+                width="stretch",
+                height=min(420, 38 + 35 * len(detail_frame)),
+            )
+        else:
+            st.info(f"No Class {detail_class} defect entries are available in the current filters.")
 
     ov = F.build_pareto_summary(filtered, C.defect) if C.defect and C.qty else None
     ok = _has_data(ov, C.qty)
@@ -949,7 +1032,7 @@ def render_class_zone(filtered, C, F):
     with c1:
         tile_grid("Defect class", [(f"Class {k}", v, {"A": "red", "B": "orange", "C": "blue", "D": "green"}[k]) for k, v in cls.items()])
     with c2:
-        tile_grid("Audit zone", [(f"Zone {k}", v, "slate") for k, v in zone.items()])
+        tile_grid("Audit zone", [(f"Zone {k}", v, f"zone-{k.lower()}") for k, v in zone.items()])
     section_header("Quality distribution", "Compare quality classes and audit zones")
     _class_zone_charts(filtered, F)
 
