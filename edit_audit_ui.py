@@ -10,7 +10,6 @@ def render_edit_defect_entry(load_data, save_data, upload_image, delete_images, 
     st.title("Edit defect entry")
     st.caption("Choose a vehicle and update one of its saved defect entries.")
 
-    load_data.clear()
     data = load_data()
     chassis_col = find_col(data, ["Chassis No", "Chassis", "Chassis Number"])
     if not chassis_col:
@@ -24,7 +23,27 @@ def render_edit_defect_entry(load_data, save_data, upload_image, delete_images, 
         st.info("No audit records are available to edit.")
         return
 
-    chassis = st.selectbox("Select vehicle chassis number", chassis_values, key="edit_defect_chassis")
+    chassis_search = st.text_input(
+        "Search chassis number",
+        placeholder="Type part of a chassis number",
+        key="edit_defect_chassis_search",
+    ).strip().casefold()
+    matching_chassis = [
+        value for value in chassis_values if chassis_search in value.casefold()
+    ]
+    if not matching_chassis:
+        st.info("No chassis numbers match that search.")
+        return
+
+    current_chassis = st.session_state.get("edit_defect_chassis")
+    if current_chassis not in matching_chassis:
+        st.session_state["edit_defect_chassis"] = matching_chassis[0]
+    chassis = st.selectbox(
+        "Select vehicle chassis number",
+        matching_chassis,
+        key="edit_defect_chassis",
+    )
+    st.caption(f"Showing {len(matching_chassis)} of {len(chassis_values)} vehicles")
     row_indexes = data.index[
         data[chassis_col].fillna("").astype(str).str.strip().str.casefold() == chassis.casefold()
     ].tolist()
