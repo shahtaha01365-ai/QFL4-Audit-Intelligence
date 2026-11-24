@@ -809,33 +809,6 @@ def render_overview(filtered, C, F):
         ("DPU", F.calculate_dpu(filtered), "dark", "📊", "Defects per unit"),
     ])
 
-    section_header("Vehicles audited by time", "Unique vehicles audited in each month and calendar week")
-    if C.date and C.date in filtered.columns and not filtered.empty:
-        audit_counts = pd.DataFrame(index=filtered.index)
-        audit_counts["date"] = pd.to_datetime(filtered[C.date], errors="coerce")
-        if C.chassis and C.chassis in filtered.columns:
-            audit_counts["vehicle"] = filtered[C.chassis].fillna("").astype(str).str.strip()
-            audit_counts = audit_counts[audit_counts["vehicle"].ne("")]
-        else:
-            audit_counts["vehicle"] = filtered.index.astype(str)
-        audit_counts = audit_counts.dropna(subset=["date"])
-
-        if not audit_counts.empty:
-            monthly = audit_counts.assign(period=audit_counts["date"].dt.to_period("M")).groupby("period")["vehicle"].nunique().sort_index()
-            weekly = audit_counts.assign(period=audit_counts["date"].dt.to_period("W-SUN")).groupby("period")["vehicle"].nunique().sort_index()
-            month_labels = [period.strftime("%b %Y") for period in monthly.index]
-            week_labels = [f"{period.start_time:%d %b}–{period.end_time:%d %b %Y}" for period in weekly.index]
-
-            month_col, week_col = st.columns(2, gap="medium")
-            with month_col:
-                show_fig(simple_bar(month_labels, monthly.tolist(), ["#2f7bbf"] * len(monthly), "Vehicles audited by month", height=360))
-            with week_col:
-                show_fig(simple_bar(week_labels, weekly.tolist(), ["#0ea5e9"] * len(weekly), "Vehicles audited by week", height=360))
-        else:
-            st.info("No valid audit dates are available for the selected filters.")
-    else:
-        st.info("Audit date data is unavailable for the selected filters.")
-
     section_header("Class & zone performance", "Defect counts by class and audit zone")
     cls, zone = _class_zone_values(filtered, F)
     c1, c2 = st.columns(2, gap="medium")
@@ -875,6 +848,33 @@ def render_overview(filtered, C, F):
             show_fig(donut_fig(mix, C.defect, C.qty, "Defect mix", height=360))
         else:
             st.info("No defect mix available for the selected filters.")
+
+    section_header("Vehicles audited by time", "Unique vehicles audited in each month and calendar week")
+    if C.date and C.date in filtered.columns and not filtered.empty:
+        audit_counts = pd.DataFrame(index=filtered.index)
+        audit_counts["date"] = pd.to_datetime(filtered[C.date], errors="coerce")
+        if C.chassis and C.chassis in filtered.columns:
+            audit_counts["vehicle"] = filtered[C.chassis].fillna("").astype(str).str.strip()
+            audit_counts = audit_counts[audit_counts["vehicle"].ne("")]
+        else:
+            audit_counts["vehicle"] = filtered.index.astype(str)
+        audit_counts = audit_counts.dropna(subset=["date"])
+
+        if not audit_counts.empty:
+            monthly = audit_counts.assign(period=audit_counts["date"].dt.to_period("M")).groupby("period")["vehicle"].nunique().sort_index()
+            weekly = audit_counts.assign(period=audit_counts["date"].dt.to_period("W-SUN")).groupby("period")["vehicle"].nunique().sort_index()
+            month_labels = [period.strftime("%b %Y") for period in monthly.index]
+            week_labels = [f"{period.start_time:%d %b}–{period.end_time:%d %b %Y}" for period in weekly.index]
+
+            month_col, week_col = st.columns(2, gap="medium")
+            with month_col:
+                show_fig(simple_bar(month_labels, monthly.tolist(), ["#2f7bbf"] * len(monthly), "Vehicles audited by month", height=360))
+            with week_col:
+                show_fig(simple_bar(week_labels, weekly.tolist(), ["#0ea5e9"] * len(weekly), "Vehicles audited by week", height=360))
+        else:
+            st.info("No valid audit dates are available for the selected filters.")
+    else:
+        st.info("Audit date data is unavailable for the selected filters.")
 
     section_header("Pareto & model performance", "Vital few vs. trivial many, and defects by model")
     p1, p2 = st.columns([1.4, 1], gap="medium")
