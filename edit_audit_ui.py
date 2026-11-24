@@ -1,5 +1,6 @@
 import hashlib
 import re
+from datetime import date
 
 import pandas as pd
 import streamlit as st
@@ -102,7 +103,13 @@ def render_edit_defect_entry(load_data, save_data, upload_image, delete_images, 
     if parts[1] and parts[1] not in areas:
         areas.append(parts[1])
 
+    date_col = find_col(data, ["Date", "Audit Date"])
+    raw_date = row.get(date_col) if date_col else None
+    parsed_date = pd.to_datetime(raw_date, errors="coerce")
+    current_date = parsed_date.date() if pd.notna(parsed_date) else date.today()
+
     with st.form(f"edit_defect_form_{chassis_key}_{slot}"):
+        audit_date = st.date_input("Audit date", value=current_date)
         left, right = st.columns(2)
         with left:
             defect_type = st.selectbox("Defect type", type_options, index=type_options.index(current_type))
@@ -130,6 +137,11 @@ def render_edit_defect_entry(load_data, save_data, upload_image, delete_images, 
     if not part_name.strip() or not description.strip():
         st.error("Part name and defect description are required.")
         return
+
+    if date_col is None:
+        date_col = "Date"
+        data[date_col] = pd.NaT
+    data.at[row_index, date_col] = pd.Timestamp(audit_date)
 
     old_file_id = drive_file_id(old_image)
     new_image = old_image
