@@ -295,6 +295,40 @@ def total_defects(d):
     return nsum(d, total_col)
 
 
+def answer_chassis_defect_count(question, d):
+    """Return an exact chassis defect count for simple text count questions."""
+    question_text = str(question or "")
+    question_lower = question_text.lower()
+    asks_for_count = any(phrase in question_lower for phrase in ("how many", "number of", "count of", "total"))
+    asks_about_defects = re.search(r"\b(defect|defects|issue|issues)\b", question_lower)
+    if not asks_for_count or not asks_about_defects:
+        return None
+
+    chassis_col = find_col(d, ["Chassis No", "Chassis", "Chassis Number"])
+    if not chassis_col or d.empty:
+        return None
+
+    chassis_values = d[chassis_col].dropna().astype(str).str.strip()
+    matches_in_question = [
+        chassis for chassis in chassis_values.unique()
+        if chassis and chassis.casefold() in question_text.casefold()
+    ]
+    if matches_in_question:
+        chassis = max(matches_in_question, key=len)
+    else:
+        # Still recognize an explicitly supplied chassis when the active
+        # dashboard filters exclude it, so Gemini cannot substitute another ID.
+        chassis_tokens = re.findall(r"\b(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{10,}\b", question_text, flags=re.IGNORECASE)
+        if not chassis_tokens:
+            return None
+        chassis = max(chassis_tokens, key=len)
+        return f"No audit record for chassis {chassis} was found in the currently filtered data."
+
+    matching_rows = d[chassis_values.eq(chassis)]
+    defect_count = total_defects(matching_rows)
+    return f"Chassis {chassis} has {defect_count} defect{'s' if defect_count != 1 else ''}."
+
+
 def calculate_dpu(d):
     v_count = vehicle_count(d)
     if v_count == 0:
@@ -562,6 +596,10 @@ def clean_ai_answer(answer):
 
 
 def ai_answer(q, d):
+    exact_chassis_answer = answer_chassis_defect_count(q, d)
+    if exact_chassis_answer:
+        return exact_chassis_answer
+
     if not init_gemini():
         return "Gemini API key is not configured. Please add GEMINI_API_KEY to Streamlit Secrets."
 
