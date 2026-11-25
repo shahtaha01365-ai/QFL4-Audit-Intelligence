@@ -257,13 +257,16 @@ def class_total(d, label):
             class_cols.append((int(match.group(1)), col))
     if class_cols:
         total = 0
+        has_numbered_quantities = False
         for number, class_col in class_cols:
             qty_col = find_col(d, [f"QTY {number}", f"Quantity {number}", f"Defect Qty {number}", f"Defect Quantity {number}"])
             if qty_col:
+                has_numbered_quantities = True
                 classes = d[class_col].astype(str).str.strip().str.upper()
                 quantities = pd.to_numeric(d[qty_col], errors="coerce").fillna(0)
                 total += int(quantities[classes.eq(str(label).strip().upper())].sum())
-        return total
+        if has_numbered_quantities:
+            return total
     return nsum(d, find_col(d, [f"CLASS {label}", f"Class {label}", f"CLASS_{label}"]))
 
 
@@ -295,38 +298,71 @@ def total_defects(d):
     return nsum(d, total_col)
 
 
-def answer_chassis_defect_count(question, d):
-    """Return an exact chassis defect count for simple text count questions."""
+def answer_class_and_chassis_count(question, d):
+    """Return exact class and/or chassis counts for straightforward questions."""
     question_text = str(question or "")
     question_lower = question_text.lower()
-    asks_for_count = any(phrase in question_lower for phrase in ("how many", "number of", "count of", "total"))
+    asks_for_count = re.search(
+        r"\b(how many|number of|count of|total|kitne|kitni|kitna|kitny|qty|quantity)\b",
+        question_lower,
+    )
     asks_about_defects = re.search(r"\b(defect|defects|issue|issues)\b", question_lower)
-    if not asks_for_count or not asks_about_defects:
+    class_labels = list(dict.fromkeys(
+        label.upper() for label in re.findall(r"\bclass\s*([abcd])\b", question_lower)
+    ))
+    class_list = re.search(
+        r"\bclasses?\s+([abcd](?:\s*(?:,|and|&|/)\s*[abcd])*)",
+        question_lower,
+    )
+    if class_list:
+        class_labels.extend(re.findall(r"[abcd]", class_list.group(1)))
+    if class_labels:
+        class_labels.extend(re.findall(r"\b([abcd])\s+(?:ky|ki|ka|ke)\b", question_lower))
+    class_labels = list(dict.fromkeys(label.upper() for label in class_labels))
+    asks_for_class_breakdown = re.search(
+        r"\b(all classes|each class|class[- ]wise|by class)\b", question_lower
+    )
+    if not asks_for_count or not (asks_about_defects or class_labels or asks_for_class_breakdown):
         return None
 
     chassis_col = find_col(d, ["Chassis No", "Chassis", "Chassis Number"])
-    if not chassis_col or d.empty:
-        return None
-
-    chassis_values = d[chassis_col].dropna().astype(str).str.strip()
-    matches_in_question = [
+    chassis_values = (
+        d[chassis_col].fillna("").astype(str).str.strip()
+        if chassis_col else pd.Series("", index=d.index)
+    )
+    matching_ids = [
         chassis for chassis in chassis_values.unique()
         if chassis and chassis.casefold() in question_text.casefold()
     ]
-    if matches_in_question:
-        chassis = max(matches_in_question, key=len)
-    else:
-        # Still recognize an explicitly supplied chassis when the active
-        # dashboard filters exclude it, so Gemini cannot substitute another ID.
-        chassis_tokens = re.findall(r"\b(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{10,}\b", question_text, flags=re.IGNORECASE)
-        if not chassis_tokens:
-            return None
-        chassis = max(chassis_tokens, key=len)
+    chassis = max(matching_ids, key=len) if matching_ids else None
+    if not chassis:
+        # Recognize an ID even when active filters exclude its audit row.
+        chassis_tokens = re.findall(
+            r"\b(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{10,}\b",
+            question_text,
+            flags=re.IGNORECASE,
+        )
+        if chassis_tokens:
+            chassis = max(chassis_tokens, key=len)
+            if not chassis_col:
+                return f"I could not find a chassis number column for chassis {chassis}."
+            return f"No audit record for chassis {chassis} was found in the currently filtered data."
+
+    scoped_data = d.loc[chassis_values.eq(chassis)] if chassis else d
+    if chassis and scoped_data.empty:
         return f"No audit record for chassis {chassis} was found in the currently filtered data."
 
-    matching_rows = d[chassis_values.eq(chassis)]
-    defect_count = total_defects(matching_rows)
-    return f"Chassis {chassis} has {defect_count} defect{'s' if defect_count != 1 else ''}."
+    if asks_for_class_breakdown and not class_labels:
+        class_labels = list("ABCD")
+    if class_labels:
+        counts = [f"Class {label}: {class_total(scoped_data, label)}" for label in class_labels]
+        scope = f" for chassis {chassis}" if chassis else ""
+        return f"Class defect counts{scope}: " + ", ".join(counts) + "."
+
+    if chassis and asks_about_defects:
+        defect_count = total_defects(scoped_data)
+        return f"Chassis {chassis} has {defect_count} defect{'s' if defect_count != 1 else ''}."
+    return None
 
 
 def calculate_dpu(d):
@@ -596,9 +632,9 @@ def clean_ai_answer(answer):
 
 
 def ai_answer(q, d):
-    exact_chassis_answer = answer_chassis_defect_count(q, d)
-    if exact_chassis_answer:
-        return exact_chassis_answer
+    exact_count_answer = answer_class_and_chassis_count(q, d)
+    if exact_count_answer:
+        return exact_count_answer
 
     if not init_gemini():
         return "Gemini API key is not configured. Please add GEMINI_API_KEY to Streamlit Secrets."
