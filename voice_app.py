@@ -518,6 +518,29 @@ def make_ai_context(d):
         agg_cat = d.groupby(category_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
         summary_str += "\n\nCOMPLETE DEFECT CATEGORY SUMMARY:\n" + agg_cat.to_string(index=False)
 
+    # Give the model exact time-bucketed DPU values. A sample of recent rows
+    # is not enough to answer questions about an older month reliably.
+    date_c = find_col(d, ["Date", "Audit Date"])
+    if date_c:
+        dates = pd.to_datetime(d[date_c], errors="coerce")
+        dated = d.loc[dates.notna()].copy()
+        dated["__qfl4_ai_period"] = dates[dates.notna()].dt.to_period("M").astype(str)
+        monthly_lines = []
+        for period, group in dated.groupby("__qfl4_ai_period", sort=True):
+            defects = total_defects(group)
+            vehicles = vehicle_count(group)
+            dpu = round(defects / vehicles, 2) if vehicles else 0.0
+            monthly_lines.append(
+                f"{pd.Period(period, freq='M').strftime('%B %Y')}: "
+                f"{defects} defects / {vehicles} vehicles = {dpu:.2f} DPU"
+            )
+        if monthly_lines:
+            summary_str += (
+                "\n\nEXACT DPU BY AUDIT MONTH (calculated from all active-filtered rows; "
+                "DPU = total defect quantity divided by distinct vehicles):\n"
+                + "\n".join(monthly_lines)
+            )
+
     sample = d.tail(20).copy()
     for c in sample.columns:
         if pd.api.types.is_datetime64_any_dtype(sample[c]):
@@ -549,7 +572,7 @@ def ai_answer(q, d):
 CURRENT SYSTEM DATE: {current_date_str}
 
 STRICT DATA RULES:
-1. Use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions about defect types, quantities, vehicles, dates, chassis, classes (A, B, C, D), zones, and DPU.
+1. Use the COMPLETE DEFECT TYPE SUMMARY, EXACT DPU BY AUDIT MONTH, and audit data supplied below to answer questions about defect types, quantities, vehicles, dates, chassis, classes (A, B, C, D), zones, and DPU. For a monthly DPU question, report the exact matching month line and do not calculate it from the recent rows.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail. Look up the exact numbers from the supplied summaries and rows.
 3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period.
 4. Respect active dashboard filters.
@@ -586,7 +609,7 @@ def ai_answer_audio(audio_bytes, d):
 CURRENT SYSTEM DATE: {current_date_str}
 
 STRICT DATA RULES:
-1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY and audit data supplied below to answer questions.
+1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY, EXACT DPU BY AUDIT MONTH, and audit data supplied below to answer questions. For a monthly DPU question, report the exact matching month line and do not calculate it from the recent rows.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
 3. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
 4. Answer only what the user asked, in at most 3 short sentences. Give the exact result first; do not reproduce raw rows, tables, JSON, code, Markdown headings, or asterisks. Do not guess when the data cannot establish the answer.
