@@ -298,6 +298,55 @@ def total_defects(d):
     return nsum(d, total_col)
 
 
+def category_defect_totals(d):
+    """Sum defect quantities by category without double-counting the base entry."""
+    qty_base = find_col(d, ["QTY", "Quantity", "Defect Qty", "Defect Quantity", "Qty"])
+    numbered_categories = []
+    for col in d.columns:
+        match = re.fullmatch(r"\s*(?:Defect\s*)?Category\s*(\d+)\s*", str(col), flags=re.IGNORECASE)
+        if match:
+            numbered_categories.append((int(match.group(1)), col))
+    numbered_categories.sort()
+
+    totals = {}
+    if numbered_categories:
+        has_numbered_category = pd.Series(False, index=d.index)
+        for number, category_col in numbered_categories:
+            categories = d[category_col].fillna("").astype(str).str.strip()
+            has_value = categories.ne("") & ~categories.str.lower().isin(["nan", "none"])
+            has_numbered_category |= has_value
+            qty_col = find_col(d, [f"QTY {number}", f"Quantity {number}", f"Defect Qty {number}", f"Defect Quantity {number}"])
+            if qty_col:
+                quantities = pd.to_numeric(d[qty_col], errors="coerce").fillna(0)
+                grouped = quantities[has_value].groupby(categories[has_value]).sum()
+                for category, quantity in grouped.items():
+                    totals[category] = totals.get(category, 0) + int(quantity)
+
+        # Older rows may only have the unnumbered category and quantity.
+        base_category_col = find_col(d, ["Defect Category", "Category"])
+        if base_category_col and qty_base:
+            categories = d[base_category_col].fillna("").astype(str).str.strip()
+            has_value = (
+                ~has_numbered_category
+                & categories.ne("")
+                & ~categories.str.lower().isin(["nan", "none"])
+            )
+            quantities = pd.to_numeric(d[qty_base], errors="coerce").fillna(0)
+            grouped = quantities[has_value].groupby(categories[has_value]).sum()
+            for category, quantity in grouped.items():
+                totals[category] = totals.get(category, 0) + int(quantity)
+        return totals
+
+    base_category_col = find_col(d, ["Defect Category", "Category"])
+    if base_category_col and qty_base:
+        quantities = pd.to_numeric(d[qty_base], errors="coerce").fillna(0)
+        categories = d[base_category_col].fillna("").astype(str).str.strip()
+        for category, quantity in zip(categories, quantities):
+            if category and category.lower() not in ("nan", "none"):
+                totals[category] = totals.get(category, 0) + int(quantity)
+    return totals
+
+
 def answer_class_and_chassis_count(question, d):
     """Return exact class and/or chassis counts for straightforward questions."""
     question_text = str(question or "")
@@ -322,7 +371,13 @@ def answer_class_and_chassis_count(question, d):
     asks_for_class_breakdown = re.search(
         r"\b(all classes|each class|class[- ]wise|by class)\b", question_lower
     )
-    if not asks_for_count or not (asks_about_defects or class_labels or asks_for_class_breakdown):
+    asks_for_category_breakdown = re.search(
+        r"\b(by category|category[- ]wise|each category|all categories|category breakdown)\b",
+        question_lower,
+    )
+    if not (asks_for_count or asks_for_category_breakdown) or not (
+        asks_about_defects or class_labels or asks_for_class_breakdown or asks_for_category_breakdown
+    ):
         return None
 
     chassis_col = find_col(d, ["Chassis No", "Chassis", "Chassis Number"])
@@ -358,6 +413,17 @@ def answer_class_and_chassis_count(question, d):
         counts = [f"Class {label}: {class_total(scoped_data, label)}" for label in class_labels]
         scope = f" for chassis {chassis}" if chassis else ""
         return f"Class defect counts{scope}: " + ", ".join(counts) + "."
+
+    if asks_for_category_breakdown:
+        category_counts = category_defect_totals(scoped_data)
+        if not category_counts:
+            return f"No defect categories were found{f' for chassis {chassis}' if chassis else ''} in the currently filtered data."
+        details = "; ".join(
+            f"{category}: {count}"
+            for category, count in sorted(category_counts.items(), key=lambda item: (-item[1], item[0].casefold()))
+        )
+        scope = f" for chassis {chassis}" if chassis else ""
+        return f"Defect counts by category{scope}: {details}."
 
     if chassis and asks_about_defects:
         defect_count = total_defects(scoped_data)
@@ -583,10 +649,13 @@ def make_ai_context(d):
         agg = d.groupby(defect_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
         summary_str = "\n\nCOMPLETE DEFECT TYPE SUMMARY (Total Quantities per Defect Type across all records):\n" + agg.to_string(index=False)
 
-    category_c = find_col(d, ["Defect Category", "Category"])
-    if category_c and qty_c:
-        agg_cat = d.groupby(category_c, as_index=False)[qty_c].sum().sort_values(qty_c, ascending=False)
-        summary_str += "\n\nCOMPLETE DEFECT CATEGORY SUMMARY:\n" + agg_cat.to_string(index=False)
+    category_totals = category_defect_totals(d)
+    if category_totals:
+        category_summary = pd.DataFrame(
+            sorted(category_totals.items(), key=lambda item: (-item[1], item[0].casefold())),
+            columns=["Defect Category", "Total Quantity"],
+        )
+        summary_str += "\n\nCOMPLETE DEFECT CATEGORY SUMMARY (quantities across all active-filtered rows):\n" + category_summary.to_string(index=False)
 
     # Give the model exact time-bucketed DPU values. A sample of recent rows
     # is not enough to answer questions about an older month reliably.
@@ -646,7 +715,7 @@ def ai_answer(q, d):
 CURRENT SYSTEM DATE: {current_date_str}
 
 STRICT DATA RULES:
-1. Use the COMPLETE DEFECT TYPE SUMMARY, EXACT DPU BY AUDIT MONTH, and audit data supplied below to answer questions about defect types, quantities, vehicles, dates, chassis, classes (A, B, C, D), zones, and DPU. For a monthly DPU question, report the exact matching month line and do not calculate it from the recent rows.
+1. Use the COMPLETE DEFECT TYPE SUMMARY, COMPLETE DEFECT CATEGORY SUMMARY, EXACT DPU BY AUDIT MONTH, and audit data supplied below to answer questions about defect types, categories, quantities, vehicles, dates, chassis, classes (A, B, C, D), zones, and DPU. For monthly DPU and category count questions, report the exact matching summary values and do not calculate them from the recent rows.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail. Look up the exact numbers from the supplied summaries and rows.
 3. RELATIVE TIME AWARENESS: Use the CURRENT SYSTEM DATE above to evaluate relative time queries like "last week", "yesterday", or "today". If there are NO audit records matching that specific time frame in the provided data, you must explicitly state that no vehicles were audited during that period.
 4. Respect active dashboard filters.
@@ -683,7 +752,7 @@ def ai_answer_audio(audio_bytes, d):
 CURRENT SYSTEM DATE: {current_date_str}
 
 STRICT DATA RULES:
-1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY, EXACT DPU BY AUDIT MONTH, and audit data supplied below to answer questions. For a monthly DPU question, report the exact matching month line and do not calculate it from the recent rows.
+1. Listen to the user's voice question and use the COMPLETE DEFECT TYPE SUMMARY, COMPLETE DEFECT CATEGORY SUMMARY, EXACT DPU BY AUDIT MONTH, and audit data supplied below to answer questions about categories and other audit data. For monthly DPU and category count questions, report the exact matching summary values and do not calculate them from the recent rows.
 2. Never invent, estimate, assume, or fabricate a number or vehicle detail.
 3. LANGUAGE RULE: Respond in professional English only, regardless of the language used in the question.
 4. Answer only what the user asked, in at most 3 short sentences. Give the exact result first; do not reproduce raw rows, tables, JSON, code, Markdown headings, or asterisks. Do not guess when the data cannot establish the answer.
