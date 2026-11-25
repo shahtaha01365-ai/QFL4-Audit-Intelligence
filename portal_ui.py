@@ -111,11 +111,16 @@ section[data-testid="stSidebar"] [data-testid="stSidebarHeader"]{
 section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button{
   position:absolute; top:2px; right:0; z-index:20; display:flex !important;
   visibility:visible !important; opacity:1 !important; align-items:center; justify-content:center;
-  width:30px; height:28px; padding:0; color:#fff !important;
-  background:rgba(255,255,255,.10) !important; border:1px solid rgba(255,255,255,.24) !important;
-  border-radius:8px !important;
+  box-sizing:border-box; width:34px !important; height:34px !important; min-height:34px !important;
+  padding:0; color:#ffe3e7 !important; background:rgba(200,16,46,.16) !important;
+  border:1px solid rgba(255,107,129,.4) !important; border-radius:50% !important;
+  box-shadow:0 3px 10px rgba(0,0,0,.18); transition:background .16s, border-color .16s, transform .16s, box-shadow .16s;
 }
-section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button svg{color:#fff !important; fill:#fff !important;}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button:hover{
+  background:rgba(200,16,46,.34) !important; border-color:#ff6b81 !important;
+  box-shadow:0 4px 14px rgba(200,16,46,.24); transform:translateY(-1px);
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] button svg{color:#ffe3e7 !important; fill:#ffe3e7 !important;}
 section[data-testid="stSidebar"] .st-key-sidebar_scroll_area{
   box-sizing:border-box; height:calc(100dvh - 486px); max-height:calc(100dvh - 486px);
   min-height:100px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin;
@@ -143,7 +148,13 @@ section[data-testid="stSidebar"] .st-key-sidebar_footer [data-testid="stVertical
 [data-testid="stSidebar"] div.stButton > button{width:100%;}
 [data-testid="stSidebar"] [class*="st-key-sidebar_nav_"]{display:flex; justify-content:center; width:100%;}
 [data-testid="stSidebar"] [class*="st-key-sidebar_nav_"] div.stButton > button{
-  width:min(100%,210px) !important; justify-content:center !important;
+  box-sizing:border-box; width:min(100%,210px) !important; height:44px !important;
+  min-height:44px !important; max-height:44px !important; flex:0 0 44px;
+  justify-content:center !important;
+}
+[data-testid="stSidebar"] .st-key-sidebar_footer div.stButton > button{
+  box-sizing:border-box; height:44px !important; min-height:44px !important;
+  max-height:44px !important; flex:0 0 44px;
 }
 .side-user{display:flex; align-items:center; gap:11px; padding:12px; margin-top:14px; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09);}
 .side-avatar{width:38px; height:38px; flex:0 0 38px; border-radius:50%; display:grid; place-items:center; font-weight:800; color:#fff; background:linear-gradient(145deg,#2f7bbf,#1f4e79);}
@@ -177,7 +188,7 @@ section[data-testid="stSidebar"] .st-key-sidebar_footer [data-testid="stVertical
   background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px); background-size:44px 44px;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000); mask-image:linear-gradient(90deg,transparent,#000);}
 .mast > *{position:relative; z-index:1;}
-.mast-kicker{font-size:10px; font-weight:800; letter-spacing:1.8px; color:#ff8fa0; text-transform:uppercase;}
+.mast-kicker{font-size:12px; font-weight:800; letter-spacing:1.8px; color:#ff8fa0; text-transform:uppercase;}
 .mast-title{font-size:clamp(26px,3.2vw,38px); font-weight:800; color:#fff; letter-spacing:-1px; line-height:1.1; margin-top:8px;}
 .mast-title span{color:#ff6b81;}
 .mast-desc{font-size:13px; color:#b9c8d8; margin-top:8px; max-width:560px; line-height:1.6;}
@@ -187,9 +198,9 @@ section[data-testid="stSidebar"] .st-key-sidebar_footer [data-testid="stVertical
 
 /* ---------- Section headers / panels ---------- */
 .sec{margin:28px 0 12px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;}
-.sec-title{font-size:15px; font-weight:800; color:var(--navy); display:flex; align-items:center; gap:10px; letter-spacing:.2px;}
-.sec-title::before{content:""; width:4px; height:18px; border-radius:4px; background:var(--brand);}
-.sec-sub{font-size:12px; color:var(--muted);}
+.sec-title{font-size:18px; font-weight:800; color:var(--navy); display:flex; align-items:center; gap:10px; letter-spacing:.2px;}
+.sec-title::before{content:""; width:4px; height:22px; border-radius:4px; background:var(--brand);}
+.sec-sub{font-size:14px; color:var(--muted);}
 .section-title{font-size:15px; font-weight:800; color:var(--navy); margin:20px 0 10px;}
 .panel{background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:var(--shadow); height:100%;}
 .panel-title{font-size:11px; font-weight:800; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px;}
@@ -731,7 +742,6 @@ def render_sidebar(nav_pages, user_email, role, ai_ready, records=0):
                 st.session_state.user_name = ""
                 st.session_state.show_signup = False
                 st.session_state.auth_cookie_revoked = True
-                st.stop()
         st.html(_MOBILE_NAV_JS, unsafe_allow_javascript=True)
     return page
 

@@ -105,7 +105,6 @@ def clear_auth_cookie() -> None:
         const secure = window.location.protocol === "https:" ? "; Secure" : "";
         document.cookie =
             "{AUTH_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax" + secure;
-        window.setTimeout(() => window.location.reload(), 100);
         </script>
         """,
         unsafe_allow_javascript=True,

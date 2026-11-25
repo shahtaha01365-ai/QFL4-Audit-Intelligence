@@ -781,6 +781,20 @@ page = render_sidebar(
     len(df),
 )
 
+# The sign-out button is rendered in the sidebar, after the first login gate.
+# If it clears the session during this run, render the login screen immediately
+# instead of stopping with an empty main area.
+if not st.session_state.get("logged_in", False):
+    logout_login_placeholder = st.empty()
+    with logout_login_placeholder.container():
+        login(load_users, save_users)
+    if not st.session_state.get("logged_in", False):
+        st.stop()
+    logout_login_placeholder.empty()
+    st.session_state.portal_loading = True
+    set_auth_cookie(create_auth_token(st.session_state.user_email))
+    st.rerun()
+
 if page == "Edit Defect Entry":
     from edit_audit_ui import render_edit_defect_entry
 
